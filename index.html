@@ -340,6 +340,19 @@ function alturaReal(){
   var h = deitado ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
   return Math.max(h, window.innerHeight);
 }
+// Diagnóstico temporário das medidas de tela (remover quando a faixa de baixo estiver resolvida).
+var medidor = null;
+function diag(){
+  if (!medidor){ medidor = el('div', {style:'position:fixed;left:0;top:0;height:calc(100% + 0px);width:1px;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none'}); document.body.append(medidor); }
+  var cs = getComputedStyle(medidor), vv = window.visualViewport;
+  var r = corpoCheio ? corpoCheio.getBoundingClientRect() : null;
+  return 'app=' + (navigator.standalone === true ? 'S' : '-') + (matchMedia('(display-mode: standalone)').matches ? 'M' : '-') +
+    ' tela=' + screen.width + 'x' + screen.height + ' janela=' + innerWidth + 'x' + innerHeight +
+    ' vv=' + (vv ? Math.round(vv.width) + 'x' + Math.round(vv.height) : '?') +
+    ' doc=' + document.documentElement.clientHeight +
+    ' topo=' + cs.paddingTop + ' base=' + cs.paddingBottom +
+    (r ? ' area=' + Math.round(r.top) + '..' + Math.round(r.bottom) : '');
+}
 function ajustarAltura(){
   if (!corpoCheio){ return; }
   var h = alturaReal();
@@ -466,13 +479,13 @@ function testeToque(ctx){
     ctx.imersivo();
     ctx.corpo.textContent = ''; ctx.pe.textContent = '';
     var caixa = el('div', {class:'grade'}), base = el('canvas'), tinta = el('canvas');
-    var conta = el('b'), cortina = null;
+    var conta = el('b'), medidas = el('small', {style:'font-size:11px;color:#555;background:rgba(255,255,255,.85);padding:2px 6px;border-radius:6px;max-width:300px'}), cortina = null;
     caixa.append(base, tinta);
     ctx.corpo.append(caixa, el('div', {class:'faltam'}, conta,
       el('button', {type:'button', text:'Desistir', onclick:function(){
         faltaram = 'Faltaram ' + (total - feitos) + ' de ' + total + ' quadrados' + (etapa === 2 ? ' (deitado)' : '');
         explicar(true);
-      }})));
+      }}), medidas));
     var W, H, col, lin, cw, ch, total, feitos, marcado, gb, gt, ultimo = {}, acabou = false, giro = orient();
     function orient(){ return window.innerWidth > window.innerHeight ? 'deitado' : 'em pe'; }
     function montar(){
@@ -490,6 +503,7 @@ function testeToque(ctx){
       for (var i = 0; i < total; i++) gb.strokeRect((i % col) * cw + .5, Math.floor(i / col) * ch + .5, cw, ch);
       gt.strokeStyle = '#0D47A1'; gt.lineWidth = 5; gt.lineCap = 'round';
       atualizar();
+      medidas.textContent = diag() + ' grade=' + Math.round(W) + 'x' + Math.round(H);
     }
     function atualizar(){ conta.textContent = 'Faltam ' + (total - feitos); }
     function pintarCel(c, l){
@@ -916,6 +930,7 @@ function inicio(){
   var tela = el('div', {class:'tela'},
     el('h1', {text:'Testador de iPhone'}),
     el('p', {class:'apagado', style:'margin-top:6px', text:'Tela ' + ap.tela + (ap.modelo ? ', provável ' + ap.modelo : '') + (ap.safari ? '. Safari ' + ap.safari + '.' : '.')}),
+    el('p', {class:'apagado', style:'font-size:11px;margin-top:4px', text:diag()}),
     !window.isSecureContext ? el('div', {class:'aviso', text:'Esta página não está em HTTPS. Câmera, microfone, sensores e GPS ficam bloqueados.'}) : null,
     !ehIOS ? el('div', {class:'aviso', text:'Feito para o Safari do iPhone. Em outro aparelho, parte dos testes não funciona.'}) : null,
     ehIOS && !instalado ? el('div', {class:'instalar'},
