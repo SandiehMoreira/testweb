@@ -847,7 +847,7 @@ function testeVibra(ctx){
 function testeBotoes(ctx){
   ctx.titulo('Botões', 'Aperte cada botão e marque o resultado.');
   var lista = ITENS.botoes, cl = montarChecklist(lista), escondeu = false;
-  ctx.corpo.append(cl.nos);
+  ctx.corpo.append.apply(ctx.corpo, cl.nos);
   ctx.concluir(lista);
   function aoVer(){
     if (document.hidden){ escondeu = true; return; }
@@ -864,7 +864,7 @@ function testeBotoes(ctx){
 function testeRede(ctx){
   ctx.titulo('Wi-Fi, GPS e conexões', 'Wi-Fi e localização são medidos sozinhos. Marque o restante.');
   var lista = ITENS.rede, cl = montarChecklist(lista), vivo = true;
-  ctx.corpo.append(cl.nos);
+  ctx.corpo.append.apply(ctx.corpo, cl.nos);
   ctx.concluir(lista);
   function definir(id, v, texto){
     if (!vivo) return;
@@ -905,7 +905,8 @@ function testeManual(ctx){
     inp.addEventListener('input', function(){ estado[chave] = inp.value; salvar(); });
     return el('label', {class:'campo'}, el('span', {text:rotulo}), inp);
   }
-  ctx.corpo.append(cl.nos,
+  ctx.corpo.append.apply(ctx.corpo, cl.nos);
+  ctx.corpo.append(
     el('div', {class:'grupo', text:'Bateria'}),
     el('p', {class:'apagado pequeno', text:'Ajustes > Bateria > Saúde da Bateria. Os ciclos aparecem no iPhone 15 ou mais novo.'}),
     el('div', {class:'dupla'}, campoNum('Capacidade máxima', 'bateria', '%'), campoNum('Ciclos', 'ciclos', 'nº')));
