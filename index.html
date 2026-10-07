@@ -79,18 +79,18 @@ textarea{min-height:84px; resize:vertical}
 .corpo{flex:1; padding:6px calc(var(--sr) + 18px) 12px calc(var(--sl) + 18px); display:flex; flex-direction:column; gap:14px}
 .pe{padding:8px calc(var(--sr) + 18px) calc(var(--sb) + 14px) calc(var(--sl) + 18px); display:flex; gap:10px}
 .teste.imersivo .barra, .teste.imersivo .pe{display:none}
-.teste.imersivo .corpo{position:fixed; inset:0; padding:0; gap:0}
+.teste.imersivo .corpo{position:fixed; top:0; left:0; right:0; bottom:0; padding:0; gap:0}
 .botoes{display:grid; grid-template-columns:1fr 1fr; gap:10px}
 .estado{font-family:var(--round); font-weight:700}
 .estado.ok{color:var(--ok)} .estado.fail{color:var(--falha)}
 
 /* Toque */
-.grade{position:absolute; inset:0; display:grid; background:var(--tinta); gap:1px; touch-action:none}
-.cel{background:#26384A}
-.cel.on{background:#3DDC84}
-.pilula{position:fixed; left:50%; transform:translateX(-50%); top:45%; z-index:5; pointer-events:none; display:flex; align-items:center; gap:8px; background:rgba(20,33,43,.92); color:#fff; padding:8px 8px 8px 16px; border-radius:999px; font-family:var(--round); font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap}
-.pilula button{pointer-events:auto; min-height:40px; padding:0 14px; border-radius:999px; background:rgba(255,255,255,.16); color:#fff; font-size:15px; font-weight:700}
-.pilula button.f{background:var(--falha)}
+.grade{position:absolute; inset:0; background:#fff; touch-action:none}
+.grade canvas{position:absolute; inset:0; width:100%; height:100%}
+.faltam{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:5; pointer-events:none; display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center}
+.faltam b{font-family:var(--round); font-size:22px; color:#4D4D4D; font-variant-numeric:tabular-nums; background:rgba(255,255,255,.8); padding:2px 10px; border-radius:10px}
+.faltam button{pointer-events:auto; min-height:40px; padding:0 16px; border-radius:999px; background:rgba(255,255,255,.9); border:1px solid var(--linha); color:var(--azul); font-size:15px; font-weight:600}
+.dica-toque{margin-top:auto; margin-bottom:auto; text-align:center; display:flex; flex-direction:column; gap:14px; align-items:center}
 .cortina{position:fixed; inset:0; z-index:8; background:rgba(20,33,43,.94); color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:28px; text-align:center}
 .cortina .btn{flex:none; width:100%; max-width:320px}
 .pad{flex:1; min-height:240px; border-radius:20px; background:var(--tinta); position:relative; overflow:hidden; touch-action:none; display:flex; align-items:center; justify-content:center; color:#fff}
@@ -331,11 +331,28 @@ var TESTES = [
 ];
 var guiado = false, limpar = null, movimentoLiberado = false;
 
+// No app da Tela de Início com barra de status translúcida, o iOS mede a janela sem a barra de status,
+// mas desenha a página a partir do topo: o que usa inset:0 fica curto embaixo. Usa a altura física da tela.
+var corpoCheio = null;
+function alturaReal(){
+  if (!instalado) return 0;
+  var deitado = window.innerWidth > window.innerHeight;
+  var h = deitado ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
+  return Math.max(h, window.innerHeight);
+}
+function ajustarAltura(){
+  if (!corpoCheio){ return; }
+  var h = alturaReal();
+  corpoCheio.style.bottom = h ? 'auto' : '';
+  corpoCheio.style.height = h ? h + 'px' : '';
+}
+window.addEventListener('resize', ajustarAltura);
 function corBarra(c){ var m = document.querySelector('meta[name=theme-color]'); if (m) m.setAttribute('content', c); }
 function limparTudo(){
   if (limpar){ try { limpar(); } catch(e){} limpar = null; }
   document.documentElement.classList.remove('trava');
   corBarra('#E6EBEF');
+  corpoCheio = null;
   app.textContent = '';
   window.scrollTo(0, 0);
 }
@@ -364,6 +381,8 @@ function abrir(i){
       raiz.classList.toggle('imersivo', sim !== false);
       document.documentElement.classList.toggle('trava', sim !== false);
       corBarra(sim !== false ? '#14212B' : '#E6EBEF');
+      corpoCheio = sim !== false ? corpo : null;
+      ajustarAltura();
     },
     fim: function(res, nota){
       estado.res[t.id] = res;
@@ -429,77 +448,111 @@ function testeFantasma(ctx){
   };
 }
 
-/* 2. Toque na tela inteira */
+/* 2. Toque na tela inteira (mesmo formato do app nativo: grade branca, quadrados verdes e traço de tinta) */
 function testeToque(ctx){
-  ctx.imersivo();
-  var grade = el('div', {class:'grade'});
-  var contador = el('span', {text:''});
-  var pilula = el('div', {class:'pilula'}, contador,
-    el('button', {class:'f', type:'button', text:'Falhou', onclick:function(){
-      ctx.fim('fail', 'Faltaram ' + (cels.length - pintadas) + ' de ' + cels.length + ' áreas' + (fase === 2 ? ' (deitado)' : ''));
-    }}),
-    el('button', {type:'button', text:'Pular', onclick:function(){ ctx.fim('skip'); }}));
-  var cortina = null;
-  ctx.corpo.append(grade, pilula);
-  var cels = [], pintadas = 0, fase = 1, giro0 = orient(), pontos = [45, 20, 70];
-  function orient(){ return window.innerWidth > window.innerHeight ? 'deitado' : 'em pe'; }
-  function montar(){
-    var w = window.innerWidth, h = window.innerHeight;
-    var lado = Math.max(34, Math.min(46, Math.round(Math.min(w, h) / 9)));
-    var col = Math.ceil(w / lado), lin = Math.ceil(h / lado), i;
-    grade.textContent = ''; cels = []; pintadas = 0;
-    grade.style.gridTemplateColumns = 'repeat(' + col + ',1fr)';
-    grade.style.gridTemplateRows = 'repeat(' + lin + ',1fr)';
-    for (i = 0; i < col * lin; i++){ var c = el('div', {class:'cel'}); cels.push(c); grade.append(c); }
-    pilula.style.top = pontos[0] + '%';
-    atualizar();
+  var etapa = 1, faltaram = '', parar = null;
+  function explicar(desistiu){
+    if (parar){ parar(); parar = null; }
+    ctx.imersivo(false);
+    ctx.corpo.textContent = ''; ctx.pe.textContent = '';
+    ctx.titulo('Toque na tela inteira', 'Passe o dedo por todos os quadrados até a tela ficar toda verde.');
+    ctx.corpo.append(el('div', {class:'dica-toque'},
+      el('p', {text: desistiu ? 'Algum quadrado não ficou verde mesmo passando o dedo?' : 'Se não conseguir completar, toque em "Desistir" no meio da tela.'}),
+      el('button', {class:'btn primario', style:'flex:none;width:100%;max-width:320px', type:'button', text: desistiu ? 'Tentar de novo' : 'Começar', onclick:function(){ etapa = 1; grade(); }})));
+    if (desistiu) ctx.pe.append(el('button', {class:'btn falhou', type:'button', text:'Não funcionou', onclick:function(){ ctx.fim('fail', faltaram); }}));
   }
-  function atualizar(){ contador.textContent = pintadas + ' de ' + cels.length; }
-  function tapada(){
-    var r = pilula.getBoundingClientRect();
-    return cels.some(function(c){
-      if (c.classList.contains('on')) return false;
-      var b = c.getBoundingClientRect();
-      return !(b.right < r.left || b.left > r.right || b.bottom < r.top || b.top > r.bottom);
-    });
+  function grade(){
+    if (parar) parar();
+    ctx.imersivo();
+    ctx.corpo.textContent = ''; ctx.pe.textContent = '';
+    var caixa = el('div', {class:'grade'}), base = el('canvas'), tinta = el('canvas');
+    var conta = el('b'), cortina = null;
+    caixa.append(base, tinta);
+    ctx.corpo.append(caixa, el('div', {class:'faltam'}, conta,
+      el('button', {type:'button', text:'Desistir', onclick:function(){
+        faltaram = 'Faltaram ' + (total - feitos) + ' de ' + total + ' quadrados' + (etapa === 2 ? ' (deitado)' : '');
+        explicar(true);
+      }})));
+    var W, H, col, lin, cw, ch, total, feitos, marcado, gb, gt, ultimo = {}, acabou = false, giro = orient();
+    function orient(){ return window.innerWidth > window.innerHeight ? 'deitado' : 'em pe'; }
+    function montar(){
+      var r = caixa.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+      W = r.width; H = r.height;
+      if (W <= H){ col = 7; lin = Math.max(1, Math.round(7 * H / W)); }
+      else { lin = 7; col = Math.max(1, Math.round(7 * W / H)); }
+      cw = W / col; ch = H / lin; total = col * lin; feitos = 0; acabou = false; ultimo = {};
+      marcado = new Array(total);
+      [base, tinta].forEach(function(c){ c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); });
+      gb = base.getContext('2d'); gt = tinta.getContext('2d');
+      gb.setTransform(dpr, 0, 0, dpr, 0, 0); gt.setTransform(dpr, 0, 0, dpr, 0, 0);
+      gb.fillStyle = '#fff'; gb.fillRect(0, 0, W, H);
+      gb.strokeStyle = '#CCCCCC'; gb.lineWidth = 1;
+      for (var i = 0; i < total; i++) gb.strokeRect((i % col) * cw + .5, Math.floor(i / col) * ch + .5, cw, ch);
+      gt.strokeStyle = '#0D47A1'; gt.lineWidth = 5; gt.lineCap = 'round';
+      atualizar();
+    }
+    function atualizar(){ conta.textContent = 'Faltam ' + (total - feitos); }
+    function pintarCel(c, l){
+      var i = l * col + c;
+      if (marcado[i]) return;
+      marcado[i] = true; feitos++;
+      gb.fillStyle = '#2E7D32'; gb.fillRect(c * cw, l * ch, cw, ch);
+      gb.strokeStyle = '#CCCCCC'; gb.strokeRect(c * cw + .5, l * ch + .5, cw, ch);
+    }
+    // Marca todos os quadrados no caminho entre dois pontos (arrastes rápidos pulam quadrados sem isso).
+    function traco(a, b){
+      gt.beginPath(); gt.moveTo(a.x, a.y); gt.lineTo(b.x, b.y); gt.stroke();
+      var n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / (Math.min(cw, ch) / 3)));
+      for (var k = 0; k <= n; k++){
+        var t = k / n, x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t;
+        var c = Math.floor(x / cw), l = Math.floor(y / ch);
+        if (c >= 0 && c < col && l >= 0 && l < lin) pintarCel(c, l);
+      }
+      atualizar();
+      if (feitos === total && !acabou){ acabou = true; setTimeout(completo, 300); }
+    }
+    function completo(){
+      if (etapa === 2 || instalado){ ctx.fim('ok'); return; }
+      // No Safari as barras escondem faixas da tela; deitado, elas ficam em outro lugar.
+      cortina = el('div', {class:'cortina'},
+        el('h2', {text:'Agora deite o iPhone'}),
+        el('p', {text:'Pinte de novo com o aparelho de lado. Isso cobre as faixas que ficaram embaixo das barras do Safari.'}),
+        el('button', {class:'btn neutro', style:'color:#14212B', type:'button', text:'Pular esta parte', onclick:function(){ ctx.fim('ok', 'Testado só em pé'); }}));
+      ctx.corpo.append(cortina);
+    }
+    function ponto(p){ var r = caixa.getBoundingClientRect(); return {x:p.clientX - r.left, y:p.clientY - r.top}; }
+    function aoToque(e){
+      e.preventDefault();
+      if (acabou) return;
+      for (var i = 0; i < e.changedTouches.length; i++){
+        var t = e.changedTouches[i], p = ponto(t);
+        if (e.type === 'touchstart'){ ultimo[t.identifier] = p; traco(p, p); }
+        else if (e.type === 'touchmove'){ traco(ultimo[t.identifier] || p, p); ultimo[t.identifier] = p; }
+        else delete ultimo[t.identifier];
+      }
+    }
+    function aoMouse(e){
+      if (acabou) return;
+      var p = ponto(e);
+      if (e.type === 'mousedown'){ ultimo.m = p; traco(p, p); }
+      else if (e.buttons && ultimo.m){ traco(ultimo.m, p); ultimo.m = p; }
+      else delete ultimo.m;
+    }
+    function aoGirar(){
+      var agora = orient();
+      if (agora === giro) return;
+      giro = agora;
+      if (cortina){ cortina.remove(); cortina = null; etapa = 2; }
+      setTimeout(function(){ ajustarAltura(); montar(); }, 250);
+    }
+    ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(function(n){ caixa.addEventListener(n, aoToque, {passive:false}); });
+    ['mousedown', 'mousemove', 'mouseup'].forEach(function(n){ caixa.addEventListener(n, aoMouse); });
+    window.addEventListener('resize', aoGirar);
+    parar = function(){ window.removeEventListener('resize', aoGirar); };
+    montar();
   }
-  function reposicionar(){
-    if (!tapada()) return;
-    for (var i = 0; i < pontos.length; i++){ pilula.style.top = pontos[i] + '%'; if (!tapada()) return; }
-  }
-  function pintar(x, y){
-    var c = document.elementFromPoint(x, y);
-    if (!c || !c.classList.contains('cel') || c.classList.contains('on')) return;
-    c.classList.add('on'); pintadas++; atualizar();
-    var falta = cels.length - pintadas;
-    if (falta === 0){ completo(); return; }
-    if (falta <= 40 || pintadas % 10 === 0) reposicionar();
-  }
-  function completo(){
-    if (fase === 2 || instalado){ ctx.fim('ok'); return; }
-    cortina = el('div', {class:'cortina'},
-      el('h2', {text:'Agora deite o iPhone'}),
-      el('p', {text:'Pinte de novo com o aparelho de lado. Isso cobre as faixas que ficaram embaixo das barras do Safari.'}),
-      el('button', {class:'btn neutro', style:'color:#14212B', type:'button', text:'Pular esta parte', onclick:function(){ ctx.fim('ok', 'Testado só em pé'); }}));
-    ctx.corpo.append(cortina);
-  }
-  function aoGirar(){
-    var agora = orient();
-    if (cortina && agora !== giro0){ cortina.remove(); cortina = null; fase = 2; montar(); }
-    else if (!cortina && fase === 1 && agora !== giro0){ giro0 = agora; montar(); }
-  }
-  function aoToque(e){
-    e.preventDefault();
-    for (var i = 0; i < e.touches.length; i++) pintar(e.touches[i].clientX, e.touches[i].clientY);
-  }
-  function aoMouse(e){ if (e.buttons) pintar(e.clientX, e.clientY); }
-  grade.addEventListener('touchstart', aoToque, {passive:false});
-  grade.addEventListener('touchmove', aoToque, {passive:false});
-  grade.addEventListener('mousedown', aoMouse);
-  grade.addEventListener('mousemove', aoMouse);
-  window.addEventListener('resize', aoGirar);
-  montar();
-  return function(){ window.removeEventListener('resize', aoGirar); };
+  explicar(false);
+  return function(){ if (parar) parar(); };
 }
 
 /* 3. Multitoque */
