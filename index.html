@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Testador">
+<meta name="theme-color" content="#E6EBEF">
+<title>Testador de iPhone</title>
+<style>
+:root{
+  --bancada:#E6EBEF; --etiqueta:#FFFFFF; --tinta:#14212B; --apagado:#5F6E7A; --linha:#CBD4DB;
+  --azul:#2463C9; --ok:#17864B; --falha:#CC3324; --pendente:#A3AFB9;
+  --round: ui-rounded, "SF Pro Rounded", -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+  --sans: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+  --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px);
+  --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0; height:100%}
+body{
+  background:var(--bancada); color:var(--tinta); font-family:var(--sans); font-size:17px; line-height:1.4;
+  -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; touch-action:manipulation;
+  overscroll-behavior:none; -webkit-text-size-adjust:100%;
+}
+html.trava, html.trava body{overflow:hidden; position:fixed; inset:0; width:100%; touch-action:none}
+button{font:inherit; color:inherit; border:0; background:none; padding:0; cursor:pointer}
+button:focus-visible, input:focus-visible, textarea:focus-visible{outline:3px solid var(--azul); outline-offset:2px}
+h1,h2{font-family:var(--round); margin:0; letter-spacing:-.01em}
+h1{font-size:30px; line-height:1.1; font-weight:800}
+h2{font-size:22px; line-height:1.2; font-weight:700}
+p{margin:0}
+.apagado{color:var(--apagado)}
+.pequeno{font-size:14px}
+
+/* Estrutura */
+.tela{min-height:100%; display:flex; flex-direction:column; padding:calc(var(--st) + 18px) calc(var(--sr) + 18px) 0 calc(var(--sl) + 18px)}
+.rodape{position:sticky; bottom:0; margin:auto -18px 0; padding:12px 18px calc(var(--sb) + 12px); background:linear-gradient(to top, var(--bancada) 78%, rgba(230,235,239,0)); display:flex; gap:10px}
+.btn{flex:1; min-height:56px; border-radius:16px; font-family:var(--round); font-weight:700; font-size:18px; padding:0 16px; display:flex; align-items:center; justify-content:center; text-align:center}
+.btn.primario{background:var(--azul); color:#fff}
+.btn.passou{background:var(--ok); color:#fff}
+.btn.falhou{background:var(--falha); color:#fff}
+.btn.neutro{background:var(--etiqueta); border:2px solid var(--linha)}
+.btn.fino{min-height:46px; font-size:16px}
+.btn:active{transform:scale(.98)}
+.btn[disabled]{opacity:.45}
+
+/* Início */
+.aviso{background:#FFF3D6; border-left:5px solid #D9920A; border-radius:8px; padding:10px 12px; margin-top:14px; font-size:15px}
+.campo{display:block; margin-top:16px}
+.campo span{display:block; font-size:14px; color:var(--apagado); margin-bottom:4px}
+input[type=text], input[type=number], textarea{
+  width:100%; font:inherit; color:inherit; background:var(--etiqueta); border:2px solid var(--linha); border-radius:12px; padding:12px;
+  -webkit-user-select:text; user-select:text;
+}
+textarea{min-height:84px; resize:vertical}
+.lista{list-style:none; margin:18px 0 0; padding:0; background:var(--etiqueta); border-radius:16px; overflow:hidden}
+.lista li + li{border-top:1px solid var(--linha)}
+.item{width:100%; display:flex; align-items:center; gap:12px; padding:14px 14px; text-align:left; min-height:58px}
+.item .n{font-family:var(--round); font-weight:700; color:var(--apagado); width:24px; font-variant-numeric:tabular-nums}
+.item .nome{flex:1; font-weight:600}
+.selo{font-family:var(--round); font-weight:700; font-size:14px; padding:4px 10px; border-radius:999px; background:var(--bancada); color:var(--apagado); white-space:nowrap}
+.selo.ok{background:#DDF3E6; color:var(--ok)}
+.selo.fail{background:#FBE0DC; color:var(--falha)}
+
+/* Teste */
+.teste{min-height:100%; display:flex; flex-direction:column}
+.barra{display:flex; align-items:center; gap:8px; padding:calc(var(--st) + 10px) calc(var(--sr) + 12px) 10px calc(var(--sl) + 12px)}
+.barra .titulo{flex:1; text-align:center; font-family:var(--round); font-weight:700; font-size:17px}
+.barra button{min-width:72px; min-height:44px; font-weight:600; color:var(--azul); font-size:16px}
+.barra button:first-child{text-align:left} .barra button:last-child{text-align:right}
+.corpo{flex:1; padding:6px calc(var(--sr) + 18px) 12px calc(var(--sl) + 18px); display:flex; flex-direction:column; gap:14px}
+.pe{padding:8px calc(var(--sr) + 18px) calc(var(--sb) + 14px) calc(var(--sl) + 18px); display:flex; gap:10px}
+.teste.imersivo .barra, .teste.imersivo .pe{display:none}
+.teste.imersivo .corpo{position:fixed; inset:0; padding:0; gap:0}
+.botoes{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.estado{font-family:var(--round); font-weight:700}
+.estado.ok{color:var(--ok)} .estado.fail{color:var(--falha)}
+
+/* Toque */
+.grade{position:absolute; inset:0; display:grid; background:var(--tinta); gap:1px; touch-action:none}
+.cel{background:#26384A}
+.cel.on{background:#3DDC84}
+.pilula{position:fixed; left:50%; transform:translateX(-50%); top:45%; z-index:5; pointer-events:none; display:flex; align-items:center; gap:8px; background:rgba(20,33,43,.92); color:#fff; padding:8px 8px 8px 16px; border-radius:999px; font-family:var(--round); font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap}
+.pilula button{pointer-events:auto; min-height:40px; padding:0 14px; border-radius:999px; background:rgba(255,255,255,.16); color:#fff; font-size:15px; font-weight:700}
+.pilula button.f{background:var(--falha)}
+.cortina{position:fixed; inset:0; z-index:8; background:rgba(20,33,43,.94); color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:28px; text-align:center}
+.cortina .btn{flex:none; width:100%; max-width:320px}
+.pad{flex:1; min-height:240px; border-radius:20px; background:var(--tinta); position:relative; overflow:hidden; touch-action:none; display:flex; align-items:center; justify-content:center; color:#fff}
+.pad .num{font-family:var(--round); font-weight:800; font-size:120px; line-height:1; font-variant-numeric:tabular-nums}
+.dedo{position:fixed; width:70px; height:70px; margin:-35px 0 0 -35px; border-radius:50%; border:4px solid #3DDC84; pointer-events:none; z-index:6}
+.conta{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:var(--tinta); color:#fff; text-align:center; padding:24px}
+.conta .num{font-family:var(--round); font-weight:800; font-size:140px; line-height:1}
+.marca{position:fixed; width:54px; height:54px; margin:-27px 0 0 -27px; border-radius:50%; background:var(--falha); z-index:9; pointer-events:none}
+
+/* Tela */
+.cor{position:absolute; inset:0; display:flex; align-items:flex-end; justify-content:center; padding:0 20px calc(var(--sb) + 40px)}
+.cor .dica{font-weight:600; padding:8px 14px; border-radius:999px; background:rgba(128,128,128,.55); color:#fff; transition:opacity .4s}
+
+/* Medidores */
+.medidor{height:26px; border-radius:13px; background:var(--etiqueta); border:2px solid var(--linha); overflow:hidden}
+.medidor i{display:block; height:100%; width:0; background:var(--azul); border-radius:13px}
+.video{width:100%; flex:1; min-height:260px; max-height:56vh; background:#000; border-radius:18px; object-fit:cover}
+.chips{display:flex; flex-wrap:wrap; gap:8px}
+.chip{padding:9px 14px; border-radius:999px; background:var(--etiqueta); border:2px solid var(--linha); font-weight:600; font-size:15px}
+.chip.ativo{border-color:var(--azul); color:var(--azul)}
+.chip.visto::after{content:" ✓"; color:var(--ok)}
+.chip.erro{border-color:var(--falha); color:var(--falha)}
+.luzes{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
+.luz{padding:12px 4px; border-radius:12px; background:var(--etiqueta); border:2px solid var(--linha); text-align:center; font-family:var(--round); font-weight:700; color:var(--apagado)}
+.luz.on{background:#DDF3E6; border-color:var(--ok); color:var(--ok)}
+.leitura{font-variant-numeric:tabular-nums; background:var(--etiqueta); border-radius:12px; padding:10px 12px; font-size:15px; white-space:pre-line}
+.chave{display:flex; justify-content:center; padding:36px 0}
+.chave input{transform:scale(2.4)}
+
+/* Checklist */
+.grupo{font-family:var(--round); font-weight:700; margin:8px 0 -6px}
+.linhas{background:var(--etiqueta); border-radius:16px; overflow:hidden}
+.linha{display:flex; align-items:center; gap:10px; padding:12px 12px 12px 14px}
+.linha + .linha{border-top:1px solid var(--linha)}
+.linha .info{flex:1}
+.linha .rot{font-weight:600}
+.linha .como{font-size:14px; color:var(--apagado)}
+.seg{display:flex; gap:6px}
+.seg button{width:48px; height:48px; border-radius:12px; border:2px solid var(--linha); font-size:20px; font-weight:800; color:var(--apagado)}
+.seg button.f.on{background:var(--falha); border-color:var(--falha); color:#fff}
+.seg button.o.on{background:var(--ok); border-color:var(--ok); color:#fff}
+.dupla{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.dupla .campo{margin-top:0}
+
+/* Relatório */
+.carimbo{align-self:flex-start; margin:18px 0 4px; padding:8px 18px; border:4px solid currentColor; border-radius:10px; font-family:var(--round); font-weight:800; font-size:28px; transform:rotate(-4deg); letter-spacing:.02em}
+.carimbo.ok{color:var(--ok)} .carimbo.fail{color:var(--falha)} .carimbo.inc{color:var(--apagado)}
+.res{display:flex; gap:10px; padding:11px 14px; align-items:baseline}
+.res + .res{border-top:1px solid var(--linha)}
+.res .r{font-family:var(--round); font-weight:800; width:64px; flex:none}
+.res .r.ok{color:var(--ok)} .res .r.fail{color:var(--falha)} .res .r.skip{color:var(--apagado)}
+.res .nota{display:block; font-size:14px; color:var(--apagado)}
+
+@media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+@media print{ .rodape, .barra{display:none} body{background:#fff} }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------- utilidades ---------- */
+function el(tag, props){
+  var n = document.createElement(tag), k, v, i, kid;
+  if (props) for (k in props){
+    v = props[k];
+    if (k === 'class') n.className = v;
+    else if (k === 'text') n.textContent = v;
+    else if (k === 'style') n.style.cssText = v;
+    else if (k.slice(0,2) === 'on') n.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) n.setAttribute(k, v === true ? '' : v);
+  }
+  for (i = 2; i < arguments.length; i++){
+    kid = arguments[i];
+    if (Array.isArray(kid)) kid.forEach(function(c){ if (c != null && c !== false) n.append(c.nodeType ? c : document.createTextNode(c)); });
+    else if (kid != null && kid !== false) n.append(kid.nodeType ? kid : document.createTextNode(kid));
+  }
+  return n;
+}
+var app = document.getElementById('app');
+var ua = navigator.userAgent;
+var ehIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+var instalado = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+
+var MODELOS = {
+  '320x568':'iPhone SE (1ª ger.)', '375x667':'iPhone 6/7/8 ou SE 2/3', '414x736':'iPhone 6/7/8 Plus',
+  '375x812':'iPhone X/XS/11 Pro ou 12/13 mini', '414x896':'iPhone XR/11 ou XS Max/11 Pro Max',
+  '390x844':'iPhone 12/13/14 ou 16e', '428x926':'iPhone 12/13 Pro Max ou 14 Plus',
+  '393x852':'iPhone 14 Pro, 15 ou 16', '430x932':'iPhone 14 Pro Max, 15/16 Plus ou 15 Pro Max',
+  '402x874':'iPhone 16 Pro ou 17', '440x956':'iPhone 16/17 Pro Max', '420x912':'iPhone Air'
+};
+function aparelho(){
+  var w = Math.min(screen.width, screen.height), h = Math.max(screen.width, screen.height);
+  var v = (ua.match(/Version\/([\d.]+)/) || [])[1];
+  return {
+    tela: w + '×' + h + ' @' + (window.devicePixelRatio || 1) + 'x',
+    modelo: MODELOS[w + 'x' + h] || '',
+    safari: v || ''
+  };
+}
+
+/* ---------- estado ---------- */
+var CHAVE = 'testador-iphone-v1';
+function novoEstado(){ return {res:{}, notas:{}, itens:{}, ident:'', bateria:'', ciclos:'', obs:''}; }
+var estado = novoEstado();
+function salvar(){ try { localStorage.setItem(CHAVE, JSON.stringify(estado)); } catch(e){} }
+function carregar(){
+  try { var s = JSON.parse(localStorage.getItem(CHAVE)); if (s && s.res) estado = Object.assign(novoEstado(), s); } catch(e){}
+}
+
+/* ---------- áudio ---------- */
+var AC = null;
+function audio(){
+  if (!AC){ var C = window.AudioContext || window.webkitAudioContext; AC = new C(); }
+  if (AC.state === 'suspended') AC.resume();
+  return AC;
+}
+// Faz o som sair mesmo com a chave silenciosa ligada (Safari 16.4+)
+function sessao(tipo){ try { if (navigator.audioSession) navigator.audioSession.type = tipo; } catch(e){} }
+function tom(de, ate, dur, pan){
+  var a = audio(), o = a.createOscillator(), g = a.createGain(), t = a.currentTime, fim = g;
+  o.type = 'sine';
+  o.frequency.setValueAtTime(de, t);
+  if (ate) o.frequency.exponentialRampToValueAtTime(ate, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.6, t + 0.05);
+  g.gain.setValueAtTime(0.6, t + dur - 0.08);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  if (pan != null && a.createStereoPanner){ var p = a.createStereoPanner(); p.pan.value = pan; g.connect(p); fim = p; }
+  o.connect(g); fim.connect(a.destination);
+  o.start(t); o.stop(t + dur + 0.02);
+  return function(){ try { o.stop(); } catch(e){} };
+}
+
+/* ---------- tela acesa ---------- */
+var trava = null;
+function manterAcesa(){
+  try {
+    if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function(l){ trava = l; }).catch(function(){});
+  } catch(e){}
+}
+document.addEventListener('visibilitychange', function(){ if (!document.hidden) manterAcesa(); });
+
+/* ---------- checklist (✕ / ✓) ---------- */
+var ITENS = {
+  botoes: [
+    {id:'b_lateral', rot:'Botão lateral', como:'Aperte para apagar a tela e desbloqueie. Marca sozinho.'},
+    {id:'b_volmais', rot:'Volume +', como:'O indicador de volume deve subir.'},
+    {id:'b_volmenos', rot:'Volume −', como:'O indicador de volume deve descer.'},
+    {id:'b_silencio', rot:'Chave silenciosa ou botão de Ação', como:'Deve alternar o modo silencioso e vibrar.'},
+    {id:'b_camera', rot:'Controle da Câmera', como:'Só no iPhone 16 ou mais novo. Deve abrir a câmera.'}
+  ],
+  rede: [
+    {id:'r_wifi', rot:'Wi-Fi', como:'Medindo…'},
+    {id:'r_gps', rot:'Localização (GPS)', como:'Aguardando permissão…'},
+    {id:'r_bt', rot:'Bluetooth', como:'Ajustes > Bluetooth: deve listar aparelhos por perto.'},
+    {id:'r_nfc', rot:'NFC', como:'Encoste um cartão por aproximação no topo, com a tela acesa.'},
+    {id:'r_chip', rot:'Chip e sinal', como:'Com chip: operadora e barras de sinal aparecem.'}
+  ],
+  manual: [
+    {grupo:'Biometria e sensores'},
+    {id:'m_faceid', rot:'Face ID ou Touch ID', como:'Ajustes > Face ID e Código > Configurar. Com defeito, avisa que está indisponível.'},
+    {id:'m_prox', rot:'Sensor de proximidade', como:'Inicie uma ligação e cubra o topo da tela: ela deve apagar.'},
+    {id:'m_truetone', rot:'True Tone', como:'Central de Controle > segure o brilho. Sem a opção, a tela foi trocada.'},
+    {grupo:'Energia'},
+    {id:'m_cabo', rot:'Carrega por cabo', como:'Conecte o cabo: toca o som e aparece o raio.'},
+    {id:'m_semfio', rot:'Carrega sem fio', como:'Apoie numa base MagSafe ou Qi.'},
+    {grupo:'Histórico e bloqueios'},
+    {id:'m_pecas', rot:'Peças originais', como:'Ajustes > Geral > Sobre. Não pode aparecer "Peça desconhecida".'},
+    {id:'m_conta', rot:'Sem Conta Apple', como:'Ajustes: sem conta logada e com Buscar desativado.'},
+    {id:'m_mdm', rot:'Sem gerenciamento', como:'Ajustes > Geral > VPN e Gerenciamento: sem perfil de empresa.'},
+    {grupo:'Estética'},
+    {id:'m_vidro', rot:'Tela', como:'Sem trincas, riscos fundos ou cantos levantados.'},
+    {id:'m_traseira', rot:'Traseira e lentes', como:'Vidro inteiro, lentes sem trinca nem poeira por dentro.'},
+    {id:'m_lateral', rot:'Laterais e conector', como:'Sem amassados; conector limpo e firme.'}
+  ]
+};
+function linhaItem(item, aoMudar){
+  var f = el('button', {class:'f', type:'button', 'aria-label':'Falhou: ' + item.rot, text:'✕'});
+  var o = el('button', {class:'o', type:'button', 'aria-label':'Passou: ' + item.rot, text:'✓'});
+  var como = el('div', {class:'como', text:item.como || ''});
+  function pintar(){
+    f.classList.toggle('on', estado.itens[item.id] === 'fail');
+    o.classList.toggle('on', estado.itens[item.id] === 'ok');
+  }
+  function marcar(v){
+    estado.itens[item.id] = estado.itens[item.id] === v ? undefined : v;
+    salvar(); pintar(); if (aoMudar) aoMudar();
+  }
+  f.addEventListener('click', function(){ marcar('fail'); });
+  o.addEventListener('click', function(){ marcar('ok'); });
+  pintar();
+  var linha = el('div', {class:'linha'},
+    el('div', {class:'info'}, el('div', {class:'rot', text:item.rot}), como),
+    el('div', {class:'seg'}, f, o));
+  linha.pintar = pintar; linha.como = como;
+  return linha;
+}
+function montarChecklist(lista){
+  var frag = [], caixa = null, linhas = {};
+  lista.forEach(function(it){
+    if (it.grupo){ frag.push(el('div', {class:'grupo', text:it.grupo})); caixa = null; return; }
+    if (!caixa){ caixa = el('div', {class:'linhas'}); frag.push(caixa); }
+    var l = linhaItem(it); linhas[it.id] = l; caixa.append(l);
+  });
+  return {nos:frag, linhas:linhas};
+}
+function resultadoChecklist(lista){
+  var falhas = [], oks = 0, pend = [];
+  lista.forEach(function(it){
+    if (!it.id) return;
+    var v = estado.itens[it.id];
+    if (v === 'fail') falhas.push(it.rot); else if (v === 'ok') oks++; else pend.push(it.rot);
+  });
+  var nota = [];
+  if (falhas.length) nota.push('Falhou: ' + falhas.join(', '));
+  if (pend.length) nota.push('Não verificado: ' + pend.join(', '));
+  return {res: falhas.length ? 'fail' : (oks ? 'ok' : 'skip'), nota: nota.join('. ')};
+}
+
+/* ---------- testes ---------- */
+var TESTES = [
+  {id:'fantasma', nome:'Toque fantasma', run:testeFantasma},
+  {id:'toque', nome:'Toque na tela inteira', run:testeToque},
+  {id:'multi', nome:'Multitoque', run:testeMulti},
+  {id:'tela', nome:'Cores e pixels da tela', run:testeTela},
+  {id:'som', nome:'Alto-falantes', run:testeSom},
+  {id:'mic', nome:'Microfone', run:testeMic},
+  {id:'camera', nome:'Câmeras e lanterna', run:testeCamera},
+  {id:'movimento', nome:'Sensores de movimento', run:testeMovimento},
+  {id:'vibra', nome:'Vibração', run:testeVibra},
+  {id:'botoes', nome:'Botões', run:testeBotoes},
+  {id:'rede', nome:'Wi-Fi, GPS e conexões', run:testeRede},
+  {id:'manual', nome:'Checklist final', run:testeManual}
+];
+var guiado = false, limpar = null, movimentoLiberado = false;
+
+function limparTudo(){
+  if (limpar){ try { limpar(); } catch(e){} limpar = null; }
+  document.documentElement.classList.remove('trava');
+  app.textContent = '';
+  window.scrollTo(0, 0);
+}
+function depoisDe(i){
+  if (!guiado){ inicio(); return; }
+  for (var k = i + 1; k < TESTES.length; k++) if (!estado.res[TESTES[k].id]){ abrir(k); return; }
+  guiado = false; relatorio();
+}
+function abrir(i){
+  limparTudo();
+  var t = TESTES[i];
+  var corpo = el('div', {class:'corpo'}), pe = el('div', {class:'pe'});
+  var raiz = el('div', {class:'teste'},
+    el('div', {class:'barra'},
+      el('button', {type:'button', text:'‹ Lista', onclick:function(){ guiado = false; limparTudo(); inicio(); }}),
+      el('div', {class:'titulo', text:(i + 1) + ' de ' + TESTES.length}),
+      el('button', {type:'button', text:'Pular', onclick:function(){ ctx.fim('skip'); }})),
+    corpo, pe);
+  var ctx = {
+    corpo: corpo, pe: pe,
+    titulo: function(texto, sub){
+      corpo.append(el('h2', {text:texto || t.nome}));
+      if (sub) corpo.append(el('p', {class:'apagado', text:sub}));
+    },
+    imersivo: function(sim){
+      raiz.classList.toggle('imersivo', sim !== false);
+      document.documentElement.classList.toggle('trava', sim !== false);
+    },
+    fim: function(res, nota){
+      estado.res[t.id] = res;
+      if (nota) estado.notas[t.id] = nota; else delete estado.notas[t.id];
+      salvar(); limparTudo(); depoisDe(i);
+    },
+    veredito: function(){
+      pe.textContent = '';
+      pe.append(
+        el('button', {class:'btn falhou', type:'button', text:'Falhou', onclick:function(){ ctx.fim('fail'); }}),
+        el('button', {class:'btn passou', type:'button', text:'Passou', onclick:function(){ ctx.fim('ok'); }}));
+    },
+    concluir: function(lista){
+      pe.textContent = '';
+      pe.append(el('button', {class:'btn primario', type:'button', text:'Concluir', onclick:function(){
+        var r = resultadoChecklist(lista); ctx.fim(r.res, r.nota);
+      }}));
+    }
+  };
+  app.append(raiz);
+  limpar = t.run(ctx) || null;
+}
+
+/* 1. Toque fantasma */
+function testeFantasma(ctx){
+  ctx.imersivo();
+  var num = el('div', {class:'num', text:'5'});
+  var msg = el('p', {text:'Solte o aparelho na mesa e não toque na tela.'});
+  var caixa = el('div', {class:'conta'}, num, msg);
+  ctx.corpo.append(caixa);
+  var resta = 5, relogio = null, espera = null, ouvindo = false, acabou = false;
+  function aoTocar(e){
+    if (!ouvindo || acabou) return;
+    acabou = true; clearInterval(relogio);
+    var p = e.changedTouches ? e.changedTouches[0] : e;
+    var marca = el('div', {class:'marca', style:'left:' + p.clientX + 'px;top:' + p.clientY + 'px'});
+    caixa.textContent = '';
+    caixa.append(marca,
+      el('h2', {text:'A tela registrou um toque'}),
+      el('p', {text:'O ponto vermelho mostra onde. Foi você que encostou?'}),
+      el('button', {class:'btn neutro', style:'flex:none;width:100%;max-width:320px;color:#14212B', type:'button', text:'Fui eu, repetir', onclick:function(){ limparTudo(); abrir(0); }}),
+      el('button', {class:'btn falhou', style:'flex:none;width:100%;max-width:320px', type:'button', text:'Não toquei: falhou', onclick:function(){
+        ctx.fim('fail', 'Toque sozinho em x' + Math.round(p.clientX) + ' y' + Math.round(p.clientY));
+      }}));
+  }
+  document.addEventListener('touchstart', aoTocar, true);
+  document.addEventListener('mousedown', aoTocar, true);
+  espera = setTimeout(function(){
+    ouvindo = true;
+    relogio = setInterval(function(){
+      resta--; num.textContent = String(resta);
+      if (resta <= 0){
+        clearInterval(relogio); acabou = true;
+        num.textContent = '✓'; msg.textContent = 'Nenhum toque fantasma.';
+        espera = setTimeout(function(){ ctx.fim('ok'); }, 600);
+      }
+    }, 1000);
+  }, 900);
+  return function(){
+    clearTimeout(espera); clearInterval(relogio);
+    document.removeEventListener('touchstart', aoTocar, true);
+    document.removeEventListener('mousedown', aoTocar, true);
+  };
+}
+
+/* 2. Toque na tela inteira */
+function testeToque(ctx){
+  ctx.imersivo();
+  var grade = el('div', {class:'grade'});
+  var contador = el('span', {text:''});
+  var pilula = el('div', {class:'pilula'}, contador,
+    el('button', {class:'f', type:'button', text:'Falhou', onclick:function(){
+      ctx.fim('fail', 'Faltaram ' + (cels.length - pintadas) + ' de ' + cels.length + ' áreas' + (fase === 2 ? ' (deitado)' : ''));
+    }}),
+    el('button', {type:'button', text:'Pular', onclick:function(){ ctx.fim('skip'); }}));
+  var cortina = null;
+  ctx.corpo.append(grade, pilula);
+  var cels = [], pintadas = 0, fase = 1, giro0 = orient(), pontos = [45, 20, 70];
+  function orient(){ return window.innerWidth > window.innerHeight ? 'deitado' : 'em pe'; }
+  function montar(){
+    var w = window.innerWidth, h = window.innerHeight;
+    var lado = Math.max(34, Math.min(46, Math.round(Math.min(w, h) / 9)));
+    var col = Math.ceil(w / lado), lin = Math.ceil(h / lado), i;
+    grade.textContent = ''; cels = []; pintadas = 0;
+    grade.style.gridTemplateColumns = 'repeat(' + col + ',1fr)';
+    grade.style.gridTemplateRows = 'repeat(' + lin + ',1fr)';
+    for (i = 0; i < col * lin; i++){ var c = el('div', {class:'cel'}); cels.push(c); grade.append(c); }
+    pilula.style.top = pontos[0] + '%';
+    atualizar();
+  }
+  function atualizar(){ contador.textContent = pintadas + ' de ' + cels.length; }
+  function tapada(){
+    var r = pilula.getBoundingClientRect();
+    return cels.some(function(c){
+      if (c.classList.contains('on')) return false;
+      var b = c.getBoundingClientRect();
+      return !(b.right < r.left || b.left > r.right || b.bottom < r.top || b.top > r.bottom);
+    });
+  }
+  function reposicionar(){
+    if (!tapada()) return;
+    for (var i = 0; i < pontos.length; i++){ pilula.style.top = pontos[i] + '%'; if (!tapada()) return; }
+  }
+  function pintar(x, y){
+    var c = document.elementFromPoint(x, y);
+    if (!c || !c.classList.contains('cel') || c.classList.contains('on')) return;
+    c.classList.add('on'); pintadas++; atualizar();
+    var falta = cels.length - pintadas;
+    if (falta === 0){ completo(); return; }
+    if (falta <= 40 || pintadas % 10 === 0) reposicionar();
+  }
+  function completo(){
+    if (fase === 2 || instalado){ ctx.fim('ok'); return; }
+    cortina = el('div', {class:'cortina'},
+      el('h2', {text:'Agora deite o iPhone'}),
+      el('p', {text:'Pinte de novo com o aparelho de lado. Isso cobre as faixas que ficaram embaixo das barras do Safari.'}),
+      el('button', {class:'btn neutro', style:'color:#14212B', type:'button', text:'Pular esta parte', onclick:function(){ ctx.fim('ok', 'Testado só em pé'); }}));
+    ctx.corpo.append(cortina);
+  }
+  function aoGirar(){
+    var agora = orient();
+    if (cortina && agora !== giro0){ cortina.remove(); cortina = null; fase = 2; montar(); }
+    else if (!cortina && fase === 1 && agora !== giro0){ giro0 = agora; montar(); }
+  }
+  function aoToque(e){
+    e.preventDefault();
+    for (var i = 0; i < e.touches.length; i++) pintar(e.touches[i].clientX, e.touches[i].clientY);
+  }
+  function aoMouse(e){ if (e.buttons) pintar(e.clientX, e.clientY); }
+  grade.addEventListener('touchstart', aoToque, {passive:false});
+  grade.addEventListener('touchmove', aoToque, {passive:false});
+  grade.addEventListener('mousedown', aoMouse);
+  grade.addEventListener('mousemove', aoMouse);
+  window.addEventListener('resize', aoGirar);
+  montar();
+  return function(){ window.removeEventListener('resize', aoGirar); };
+}
+
+/* 3. Multitoque */
+function testeMulti(ctx){
+  ctx.titulo('Multitoque', 'Encoste 5 dedos ao mesmo tempo na área escura.');
+  var num = el('div', {class:'num', text:'0'});
+  var pad = el('div', {class:'pad'}, num);
+  ctx.corpo.append(pad);
+  var maximo = 0, dedos = [], espera = null;
+  function desenhar(e){
+    e.preventDefault();
+    dedos.forEach(function(d){ d.remove(); }); dedos = [];
+    for (var i = 0; i < e.touches.length; i++){
+      var d = el('div', {class:'dedo', style:'left:' + e.touches[i].clientX + 'px;top:' + e.touches[i].clientY + 'px'});
+      dedos.push(d); pad.append(d);
+    }
+    if (e.touches.length > maximo){ maximo = e.touches.length; num.textContent = String(maximo); }
+    if (maximo >= 5 && !espera) espera = setTimeout(function(){ ctx.fim('ok'); }, 500);
+  }
+  ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(function(n){ pad.addEventListener(n, desenhar, {passive:false}); });
+  ctx.pe.append(
+    el('button', {class:'btn falhou', type:'button', text:'Não chega a 5', onclick:function(){ ctx.fim('fail', 'Máximo de ' + maximo + ' toques simultâneos'); }}));
+  return function(){ clearTimeout(espera); };
+}
+
+/* 4. Cores e pixels */
+function testeTela(ctx){
+  var CORES = [
+    ['#FFFFFF', 'Branco: procure manchas e pixels escuros'],
+    ['#000000', 'Preto: procure pixels acesos e vazamento de luz'],
+    ['#FF0000', 'Vermelho'], ['#00FF00', 'Verde'], ['#0000FF', 'Azul'],
+    ['#808080', 'Cinza: procure marcas fantasma (burn-in)'],
+    ['linear-gradient(90deg,#000,#fff)', 'Degradê: deve ser liso, sem faixas']
+  ];
+  var i = 0, quadro = null, some = null;
+  function mostrar(){
+    ctx.imersivo();
+    ctx.corpo.textContent = '';
+    var dica = el('div', {class:'dica', text:CORES[i][1] + '. Toque para avançar.'});
+    quadro = el('div', {class:'cor', style:'background:' + CORES[i][0]}, dica);
+    quadro.addEventListener('click', function(){
+      clearTimeout(some); i++;
+      if (i < CORES.length) mostrar(); else perguntar();
+    });
+    ctx.corpo.append(quadro);
+    some = setTimeout(function(){ dica.style.opacity = '0'; }, 2200);
+  }
+  function perguntar(){
+    ctx.imersivo(false);
+    ctx.corpo.textContent = '';
+    ctx.titulo('A tela estava limpa em todas as cores?', 'Falhou se viu mancha, linha, pixel morto, marca fantasma ou cor desigual.');
+    ctx.corpo.append(el('button', {class:'btn neutro fino', style:'flex:none', type:'button', text:'Ver as cores de novo', onclick:function(){ i = 0; ctx.pe.textContent = ''; mostrar(); }}));
+    ctx.veredito();
+  }
+  mostrar();
+  return function(){ clearTimeout(some); };
+}
+
+/* 5. Alto-falantes */
+function testeSom(ctx){
+  sessao('playback');
+  ctx.titulo('Alto-falantes', 'Aumente o volume e toque cada som. Leve o ouvido ao alto-falante de cima (o da chamada) e ao de baixo: os dois devem tocar, sem chiado.');
+  var parar = null;
+  function tocar(fn){ return function(){ if (parar) parar(); parar = fn(); }; }
+  ctx.corpo.append(
+    el('div', {class:'botoes'},
+      el('button', {class:'btn neutro', type:'button', text:'Grave ao agudo', onclick:tocar(function(){ return tom(100, 9000, 5); })}),
+      el('button', {class:'btn neutro', type:'button', text:'Tom contínuo', onclick:tocar(function(){ return tom(1000, null, 3); })}),
+      el('button', {class:'btn neutro', type:'button', text:'Só esquerdo', onclick:tocar(function(){ return tom(440, null, 2.5, -1); })}),
+      el('button', {class:'btn neutro', type:'button', text:'Só direito', onclick:tocar(function(){ return tom(440, null, 2.5, 1); })})),
+    el('p', {class:'apagado pequeno', text:'Esquerdo e direito só se separam com o aparelho deitado. Sem som nenhum? Confira o volume e a chave silenciosa.'}));
+  ctx.veredito();
+  return function(){ if (parar) parar(); };
+}
+
+/* 6. Microfone */
+function testeMic(ctx){
+  ctx.titulo('Microfone', 'Fale perto da base do aparelho. A barra deve se mexer.');
+  var barra = el('i'), estadoMic = el('p', {class:'estado', text:'Pedindo acesso ao microfone…'});
+  var gravar = el('button', {class:'btn neutro', style:'flex:none', type:'button', text:'Gravar 3 segundos', disabled:true});
+  var ouvir = el('button', {class:'btn neutro', style:'flex:none', type:'button', text:'Ouvir a gravação', disabled:true});
+  var tocador = el('audio', {playsinline:true});
+  ctx.corpo.append(el('div', {class:'medidor'}, barra), estadoMic, gravar, ouvir, tocador,
+    el('p', {class:'apagado pequeno', text:'A gravação deve sair clara, sem chiado nem som abafado.'}));
+  ctx.veredito();
+  var fluxo = null, fonte = null, quadro = 0, ouviu = false, vivo = true, url = null;
+  function pararFluxo(){
+    cancelAnimationFrame(quadro);
+    if (fonte){ try { fonte.disconnect(); } catch(e){} fonte = null; }
+    if (fluxo){ fluxo.getTracks().forEach(function(t){ t.stop(); }); fluxo = null; }
+    barra.style.width = '0';
+  }
+  function ligar(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      estadoMic.textContent = 'Este navegador não libera o microfone. A página precisa estar em HTTPS.'; estadoMic.className = 'estado fail'; return;
+    }
+    sessao('play-and-record');
+    navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}}).then(function(s){
+      if (!vivo){ s.getTracks().forEach(function(t){ t.stop(); }); return; }
+      fluxo = s;
+      var a = audio(), an = a.createAnalyser(), dados;
+      an.fftSize = 1024; dados = new Uint8Array(an.fftSize);
+      fonte = a.createMediaStreamSource(s); fonte.connect(an);
+      estadoMic.textContent = ouviu ? 'Som captado' : 'Ouvindo… fale alguma coisa';
+      estadoMic.className = 'estado' + (ouviu ? ' ok' : '');
+      gravar.disabled = !window.MediaRecorder;
+      (function medir(){
+        an.getByteTimeDomainData(dados);
+        var soma = 0, i, v;
+        for (i = 0; i < dados.length; i++){ v = (dados[i] - 128) / 128; soma += v * v; }
+        var rms = Math.sqrt(soma / dados.length);
+        barra.style.width = Math.min(100, Math.round(rms * 400)) + '%';
+        if (rms > 0.06 && !ouviu){ ouviu = true; estadoMic.textContent = 'Som captado'; estadoMic.className = 'estado ok'; }
+        quadro = requestAnimationFrame(medir);
+      })();
+    }).catch(function(){
+      estadoMic.textContent = 'Sem acesso ao microfone. Toque em "aA" ou no cadeado da barra do Safari e permita.'; estadoMic.className = 'estado fail';
+    });
+  }
+  gravar.addEventListener('click', function(){
+    if (!fluxo) return;
+    var partes = [], rec;
+    try { rec = new MediaRecorder(fluxo); } catch(e){ estadoMic.textContent = 'Gravação indisponível neste iOS.'; return; }
+    gravar.disabled = true; gravar.textContent = 'Gravando…';
+    rec.ondataavailable = function(e){ if (e.data && e.data.size) partes.push(e.data); };
+    rec.onstop = function(){
+      if (url) URL.revokeObjectURL(url);
+      url = URL.createObjectURL(new Blob(partes, {type: rec.mimeType || 'audio/mp4'}));
+      pararFluxo(); sessao('playback');
+      tocador.src = url;
+      gravar.textContent = 'Gravar de novo'; gravar.disabled = false; ouvir.disabled = false;
+      estadoMic.textContent = 'Gravado. Toque em ouvir.';
+    };
+    rec.start();
+    setTimeout(function(){ if (rec.state !== 'inactive') rec.stop(); }, 3000);
+  });
+  gravar.addEventListener('click', function(){ if (!fluxo && vivo) ligar(); });
+  ouvir.addEventListener('click', function(){ tocador.currentTime = 0; tocador.play().catch(function(){}); });
+  ligar();
+  return function(){ vivo = false; pararFluxo(); tocador.pause(); if (url) URL.revokeObjectURL(url); sessao('playback'); };
+}
+
+/* 7. Câmeras e lanterna */
+function testeCamera(ctx){
+  ctx.titulo('Câmeras e lanterna', 'Abra cada câmera. A imagem deve focar e não ter manchas; aponte para algo claro para ver poeira na lente.');
+  var video = el('video', {class:'video', playsinline:true, autoplay:true, muted:true}); video.muted = true;
+  var chips = el('div', {class:'chips'});
+  var aviso = el('p', {class:'estado', text:'Pedindo acesso à câmera…'});
+  var lanterna = el('button', {class:'btn neutro fino', style:'flex:none', type:'button', text:'Ligar lanterna', hidden:true});
+  var semLanterna = el('p', {class:'apagado pequeno', text:''});
+  ctx.corpo.append(video, chips, aviso, lanterna, semLanterna);
+  ctx.veredito();
+  var fluxo = null, vivo = true, luz = false, lista = [], vez = 0;
+  function parar(){ if (fluxo){ fluxo.getTracks().forEach(function(t){ t.stop(); }); fluxo = null; } video.srcObject = null; }
+  function ligar(regra, chip){
+    parar(); luz = false; lanterna.hidden = true; lanterna.textContent = 'Ligar lanterna';
+    var pedido = ++vez;
+    return navigator.mediaDevices.getUserMedia({video: regra, audio:false}).then(function(s){
+      if (!vivo || pedido !== vez){ s.getTracks().forEach(function(t){ t.stop(); }); return; }
+      fluxo = s; video.srcObject = s; video.play().catch(function(){});
+      aviso.textContent = '';
+      if (chip){ chip.classList.add('visto'); chip.classList.remove('erro'); }
+      var faixa = s.getVideoTracks()[0], cap = faixa.getCapabilities ? faixa.getCapabilities() : {};
+      if (cap.torch){ lanterna.hidden = false; semLanterna.textContent = ''; }
+      else semLanterna.textContent = 'Lanterna: nesta câmera o Safari não controla. Teste pela Central de Controle.';
+    }).catch(function(){
+      if (chip) chip.classList.add('erro');
+      aviso.textContent = chip ? 'Esta câmera não abriu.' : 'Sem acesso à câmera. Permita na barra do Safari (a página precisa estar em HTTPS).';
+      aviso.className = 'estado fail';
+    });
+  }
+  lanterna.addEventListener('click', function(){
+    if (!fluxo) return;
+    luz = !luz;
+    fluxo.getVideoTracks()[0].applyConstraints({advanced:[{torch: luz}]}).then(function(){
+      lanterna.textContent = luz ? 'Desligar lanterna' : 'Ligar lanterna';
+    }).catch(function(){ luz = false; semLanterna.textContent = 'O Safari recusou a lanterna. Teste pela Central de Controle.'; });
+  });
+  function listar(){
+    return navigator.mediaDevices.enumerateDevices().then(function(ds){
+      lista = ds.filter(function(d){ return d.kind === 'videoinput'; });
+      chips.textContent = '';
+      lista.forEach(function(d, i){
+        var c = el('button', {class:'chip', type:'button', text:d.label || ('Câmera ' + (i + 1))});
+        c.addEventListener('click', function(){
+          Array.prototype.forEach.call(chips.children, function(x){ x.classList.remove('ativo'); });
+          c.classList.add('ativo');
+          ligar({deviceId:{exact:d.deviceId}}, c);
+        });
+        chips.append(c);
+      });
+    });
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    aviso.textContent = 'Este navegador não libera a câmera. A página precisa estar em HTTPS.'; aviso.className = 'estado fail';
+  } else {
+    ligar({facingMode:'environment'}, null).then(listar).catch(function(){});
+  }
+  return function(){ vivo = false; parar(); };
+}
+
+/* 8. Sensores de movimento */
+function testeMovimento(ctx){
+  ctx.titulo('Sensores de movimento', 'Gire o aparelho devagar em todas as direções até acender todas as luzes.');
+  var nomes = ['X+', 'X−', 'Y+', 'Y−', 'Z+', 'Z−', 'Giro', 'Bússola'];
+  var luzes = nomes.map(function(n){ return el('div', {class:'luz', text:n}); });
+  var leitura = el('div', {class:'leitura', text:'Aguardando o sensor…'});
+  var liberar = el('button', {class:'btn primario', style:'flex:none', type:'button', text:'Liberar sensores'});
+  ctx.corpo.append(el('div', {class:'luzes'}, luzes), leitura);
+  ctx.veredito();
+  var visto = [false,false,false,false,false,false,false,false], chegou = false, fim = null, alarme = null, rumo = null;
+  function acender(i){
+    if (visto[i]) return;
+    visto[i] = true; luzes[i].classList.add('on');
+    if (visto.slice(0, 7).every(Boolean) && !fim) fim = setTimeout(function(){ ctx.fim('ok'); }, 700);
+  }
+  function aoMover(e){
+    chegou = true;
+    var g = e.accelerationIncludingGravity || {}, r = e.rotationRate || {};
+    var x = g.x || 0, y = g.y || 0, z = g.z || 0;
+    if (x > 6) acender(0); if (x < -6) acender(1);
+    if (y > 6) acender(2); if (y < -6) acender(3);
+    if (z > 6) acender(4); if (z < -6) acender(5);
+    var giro = Math.abs(r.alpha || 0) + Math.abs(r.beta || 0) + Math.abs(r.gamma || 0);
+    if (e.rotationRate && giro > 60) acender(6);
+    leitura.textContent = 'Acelerômetro  x ' + x.toFixed(1) + '  y ' + y.toFixed(1) + '  z ' + z.toFixed(1) +
+      '\nGiroscópio  ' + (e.rotationRate ? Math.round(giro) + ' °/s' : 'sem leitura') +
+      '\nBússola  ' + (rumo == null ? 'sem leitura' : Math.round(rumo) + '°');
+  }
+  function aoOrientar(e){
+    if (typeof e.webkitCompassHeading === 'number' && e.webkitCompassHeading >= 0){ rumo = e.webkitCompassHeading; acender(7); }
+  }
+  function escutar(){
+    window.addEventListener('devicemotion', aoMover);
+    window.addEventListener('deviceorientation', aoOrientar);
+    alarme = setTimeout(function(){
+      if (!chegou){ leitura.textContent = 'O sensor não enviou nenhum dado. Se a permissão foi dada, é sinal de defeito.'; }
+    }, 2500);
+  }
+  var precisa = window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === 'function';
+  if (!window.DeviceMotionEvent){
+    leitura.textContent = 'Este navegador não expõe os sensores de movimento.';
+  } else if (precisa && !movimentoLiberado){
+    leitura.textContent = 'O iPhone pede permissão para ler os sensores.';
+    ctx.corpo.append(liberar);
+    liberar.addEventListener('click', function(){
+      pedirMovimento().then(function(ok){
+        liberar.remove();
+        if (ok) escutar(); else leitura.textContent = 'Permissão negada. Feche a aba, abra de novo e toque em Permitir.';
+      });
+    });
+  } else escutar();
+  return function(){
+    clearTimeout(fim); clearTimeout(alarme);
+    window.removeEventListener('devicemotion', aoMover);
+    window.removeEventListener('deviceorientation', aoOrientar);
+  };
+}
+function pedirMovimento(){
+  if (!(window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === 'function')) return Promise.resolve(true);
+  var pedidos = [DeviceMotionEvent.requestPermission()];
+  if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') pedidos.push(DeviceOrientationEvent.requestPermission());
+  return Promise.all(pedidos).then(function(r){ movimentoLiberado = r[0] === 'granted'; return movimentoLiberado; })
+    .catch(function(){ return false; });
+}
+
+/* 9. Vibração */
+function testeVibra(ctx){
+  ctx.titulo('Vibração', 'Alterne a chave abaixo algumas vezes. A cada troca o aparelho deve dar um toque curto de vibração.');
+  var chave = el('input', {type:'checkbox', 'aria-label':'Chave de teste de vibração'});
+  chave.setAttribute('switch', '');
+  ctx.corpo.append(el('div', {class:'chave'}, chave),
+    el('p', {class:'apagado pequeno', text:'Funciona no iOS 18 ou mais novo. Em versão anterior, mude a chave silenciosa na lateral: o aparelho vibra ao silenciar.'}));
+  ctx.veredito();
+}
+
+/* 10. Botões */
+function testeBotoes(ctx){
+  ctx.titulo('Botões', 'Aperte cada botão e marque o resultado.');
+  var lista = ITENS.botoes, cl = montarChecklist(lista), escondeu = false;
+  ctx.corpo.append(cl.nos);
+  ctx.concluir(lista);
+  function aoVer(){
+    if (document.hidden){ escondeu = true; return; }
+    if (escondeu && estado.itens.b_lateral !== 'fail'){
+      estado.itens.b_lateral = 'ok'; salvar(); cl.linhas.b_lateral.pintar();
+      cl.linhas.b_lateral.como.textContent = 'Detectado: a tela apagou e voltou.';
+    }
+  }
+  document.addEventListener('visibilitychange', aoVer);
+  return function(){ document.removeEventListener('visibilitychange', aoVer); };
+}
+
+/* 11. Wi-Fi, GPS e conexões */
+function testeRede(ctx){
+  ctx.titulo('Wi-Fi, GPS e conexões', 'Wi-Fi e localização são medidos sozinhos. Marque o restante.');
+  var lista = ITENS.rede, cl = montarChecklist(lista), vivo = true;
+  ctx.corpo.append(cl.nos);
+  ctx.concluir(lista);
+  function definir(id, v, texto){
+    if (!vivo) return;
+    if (estado.itens[id] == null) estado.itens[id] = v;
+    salvar(); cl.linhas[id].pintar(); cl.linhas[id].como.textContent = texto;
+  }
+  (function medir(){
+    var tempos = [], n = 0;
+    function uma(){
+      var t0 = performance.now();
+      return fetch(location.pathname + '?ping=' + Date.now() + n, {method:'HEAD', cache:'no-store'})
+        .then(function(){ tempos.push(performance.now() - t0); }).catch(function(){})
+        .then(function(){ n++; if (n < 4) return uma(); });
+    }
+    uma().then(function(){
+      if (tempos.length){
+        var media = Math.round(tempos.reduce(function(a, b){ return a + b; }, 0) / tempos.length);
+        definir('r_wifi', 'ok', 'Conectado. Resposta média de ' + media + ' ms.');
+      } else definir('r_wifi', navigator.onLine ? undefined : 'fail', navigator.onLine ? 'Não deu para medir. Marque manualmente.' : 'Sem conexão.');
+    });
+  })();
+  if (navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(function(p){
+      definir('r_gps', 'ok', 'Posição obtida com precisão de ' + Math.round(p.coords.accuracy) + ' m.');
+    }, function(e){
+      definir('r_gps', undefined, e.code === 1 ? 'Permissão negada. Marque manualmente pelo app Mapas.' : 'Sem posição. Em local fechado é comum; confira no app Mapas.');
+    }, {enableHighAccuracy:true, timeout:12000, maximumAge:0});
+  } else definir('r_gps', undefined, 'Indisponível neste navegador. Confira no app Mapas.');
+  return function(){ vivo = false; };
+}
+
+/* 12. Checklist final */
+function testeManual(ctx){
+  ctx.titulo('Checklist final', 'O que o Safari não consegue testar sozinho.');
+  var lista = ITENS.manual, cl = montarChecklist(lista);
+  function campoNum(rotulo, chave, sufixo){
+    var inp = el('input', {type:'number', inputmode:'numeric', placeholder:sufixo, value:estado[chave] || ''});
+    inp.addEventListener('input', function(){ estado[chave] = inp.value; salvar(); });
+    return el('label', {class:'campo'}, el('span', {text:rotulo}), inp);
+  }
+  ctx.corpo.append(cl.nos,
+    el('div', {class:'grupo', text:'Bateria'}),
+    el('p', {class:'apagado pequeno', text:'Ajustes > Bateria > Saúde da Bateria. Os ciclos aparecem no iPhone 15 ou mais novo.'}),
+    el('div', {class:'dupla'}, campoNum('Capacidade máxima', 'bateria', '%'), campoNum('Ciclos', 'ciclos', 'nº')));
+  ctx.concluir(lista);
+}
+
+/* ---------- início ---------- */
+function rotulo(r){ return r === 'ok' ? 'Passou' : r === 'fail' ? 'Falhou' : r === 'skip' ? 'Pulado' : 'A fazer'; }
+function inicio(){
+  limparTudo();
+  var ap = aparelho(), feitos = TESTES.filter(function(t){ return estado.res[t.id]; }).length;
+  var ident = el('input', {type:'text', placeholder:'Ex.: 13 Pro azul, final 4821', value:estado.ident || '', autocomplete:'off'});
+  ident.addEventListener('input', function(){ estado.ident = ident.value; salvar(); });
+  var lista = el('ul', {class:'lista'});
+  TESTES.forEach(function(t, i){
+    var r = estado.res[t.id];
+    lista.append(el('li', null, el('button', {class:'item', type:'button', onclick:function(){ guiado = false; abrir(i); }},
+      el('span', {class:'n', text:String(i + 1)}),
+      el('span', {class:'nome', text:t.nome}),
+      el('span', {class:'selo ' + (r || ''), text:rotulo(r)}))));
+  });
+  var tela = el('div', {class:'tela'},
+    el('h1', {text:'Testador de iPhone'}),
+    el('p', {class:'apagado', style:'margin-top:6px', text:'Tela ' + ap.tela + (ap.modelo ? ', provável ' + ap.modelo : '') + (ap.safari ? '. Safari ' + ap.safari + '.' : '.')}),
+    !window.isSecureContext ? el('div', {class:'aviso', text:'Esta página não está em HTTPS. Câmera, microfone, sensores e GPS ficam bloqueados.'}) : null,
+    !ehIOS ? el('div', {class:'aviso', text:'Feito para o Safari do iPhone. Em outro aparelho, parte dos testes não funciona.'}) : null,
+    el('label', {class:'campo'}, el('span', {text:'Identificação do aparelho (opcional)'}), ident),
+    lista,
+    el('p', {class:'apagado pequeno', style:'margin:14px 0 8px', text:'O iPhone vai pedir permissão de sensores, câmera e microfone ao iniciar. Toque em Permitir.'}),
+    el('div', {class:'rodape'},
+      feitos ? el('button', {class:'btn neutro', type:'button', text:'Relatório', onclick:relatorio}) : null,
+      el('button', {class:'btn primario', type:'button', text: feitos ? (feitos === TESTES.length ? 'Novo aparelho' : 'Continuar') : 'Iniciar teste completo', onclick:function(){
+        if (feitos === TESTES.length){ zerar(); return; }
+        iniciarGuiado();
+      }})));
+  app.append(tela);
+}
+function zerar(){
+  if (!window.confirm('Apagar os resultados e começar outro aparelho?')) return;
+  estado = novoEstado(); salvar(); inicio();
+}
+function iniciarGuiado(){
+  manterAcesa();
+  try { audio(); } catch(e){}
+  // A permissão de movimento precisa ser pedida dentro do toque; câmera e microfone vêm em seguida, num pedido só.
+  pedirMovimento().then(function(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    return navigator.mediaDevices.getUserMedia({audio:true, video:true})
+      .then(function(s){ s.getTracks().forEach(function(t){ t.stop(); }); })
+      .catch(function(){});
+  }).then(function(){
+    sessao('playback');
+    guiado = true;
+    for (var k = 0; k < TESTES.length; k++) if (!estado.res[TESTES[k].id]){ abrir(k); return; }
+    guiado = false; relatorio();
+  });
+}
+
+/* ---------- relatório ---------- */
+function textoRelatorio(){
+  var ap = aparelho(), d = new Date(), L = [], falhas = 0, pend = 0;
+  function dois(n){ return (n < 10 ? '0' : '') + n; }
+  L.push('TESTE DE IPHONE  ' + dois(d.getDate()) + '/' + dois(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + dois(d.getHours()) + ':' + dois(d.getMinutes()));
+  if (estado.ident) L.push('Aparelho: ' + estado.ident);
+  L.push('Tela ' + ap.tela + (ap.modelo ? ' (provável ' + ap.modelo + ')' : '') + (ap.safari ? ', Safari ' + ap.safari : ''));
+  if (estado.bateria || estado.ciclos) L.push('Bateria: ' + (estado.bateria ? estado.bateria + '%' : '?') + (estado.ciclos ? ', ' + estado.ciclos + ' ciclos' : ''));
+  L.push('');
+  TESTES.forEach(function(t){
+    var r = estado.res[t.id];
+    if (r === 'fail') falhas++; if (!r || r === 'skip') pend++;
+    L.push('[' + (r === 'ok' ? 'OK' : r === 'fail' ? 'FALHA' : r === 'skip' ? 'PULADO' : 'NÃO FEITO') + '] ' + t.nome + (estado.notas[t.id] ? ' - ' + estado.notas[t.id] : ''));
+  });
+  L.push('');
+  L.push('Resultado: ' + (falhas ? falhas + (falhas === 1 ? ' falha' : ' falhas') : (pend ? 'sem falhas, ' + pend + ' sem testar' : 'aprovado em tudo')));
+  if (estado.obs) L.push('Obs.: ' + estado.obs);
+  return {texto: L.join('\n'), falhas: falhas, pend: pend};
+}
+function relatorio(){
+  limparTudo();
+  var rel = textoRelatorio();
+  var classe = rel.falhas ? 'fail' : (rel.pend ? 'inc' : 'ok');
+  var titulo = rel.falhas ? 'Reprovado' : (rel.pend ? 'Incompleto' : 'Aprovado');
+  var caixa = el('div', {class:'linhas', style:'margin-top:14px'});
+  TESTES.forEach(function(t, i){
+    var r = estado.res[t.id];
+    caixa.append(el('button', {class:'res', type:'button', style:'width:100%;text-align:left', onclick:function(){ guiado = false; abrir(i); }},
+      el('span', {class:'r ' + (r || 'skip'), text:rotulo(r)}),
+      el('span', null, t.nome, estado.notas[t.id] ? el('span', {class:'nota', text:estado.notas[t.id]}) : null)));
+  });
+  var obs = el('textarea', {placeholder:'Ex.: risco leve na lateral, acompanha caixa'}); obs.value = estado.obs || '';
+  obs.addEventListener('input', function(){ estado.obs = obs.value; salvar(); });
+  var copiar = el('button', {class:'btn neutro', type:'button', text:'Copiar'});
+  copiar.addEventListener('click', function(){
+    var txt = textoRelatorio().texto;
+    function feito(){ copiar.textContent = 'Copiado'; setTimeout(function(){ copiar.textContent = 'Copiar'; }, 1500); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(feito).catch(function(){ window.prompt('Copie o relatório:', txt); });
+    else window.prompt('Copie o relatório:', txt);
+  });
+  var enviar = el('button', {class:'btn primario', type:'button', text: navigator.share ? 'Enviar' : 'Novo aparelho'});
+  enviar.addEventListener('click', function(){
+    if (navigator.share) navigator.share({text: textoRelatorio().texto}).catch(function(){}); else zerar();
+  });
+  app.append(el('div', {class:'tela'},
+    el('button', {type:'button', style:'align-self:flex-start;color:var(--azul);font-weight:600;min-height:44px', text:'‹ Lista', onclick:inicio}),
+    el('div', {class:'carimbo ' + classe, text:titulo}),
+    el('p', {class:'apagado', text:(estado.ident ? estado.ident + '. ' : '') + (rel.falhas ? rel.falhas + (rel.falhas === 1 ? ' teste falhou.' : ' testes falharam.') : (rel.pend ? rel.pend + ' sem testar.' : 'Todos os testes passaram.'))}),
+    caixa,
+    el('label', {class:'campo'}, el('span', {text:'Observações'}), obs),
+    navigator.share ? el('button', {class:'btn neutro fino', style:'flex:none;margin-top:14px', type:'button', text:'Novo aparelho', onclick:zerar}) : null,
+    el('div', {class:'rodape'}, copiar, enviar)));
+}
+
+carregar();
+inicio();
+})();
+</script>
+</body>
+</html>
