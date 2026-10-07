@@ -27,7 +27,9 @@ body{
   -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; touch-action:manipulation;
   overscroll-behavior:none; -webkit-text-size-adjust:100%;
 }
-html.trava, html.trava body{overflow:hidden; position:fixed; inset:0; width:100%; touch-action:none; background:var(--tinta)}
+/* Sem overflow:hidden nem position:fixed na página: no app da Tela de Início o iOS calcula a janela
+   mais curta que a tela, e cortar a página escondia a parte de baixo dos testes em tela cheia. */
+html.trava, html.trava body{overscroll-behavior:none; touch-action:none; background:var(--tinta)}
 button{font:inherit; color:inherit; border:0; background:none; padding:0; cursor:pointer}
 button:focus-visible, input:focus-visible, textarea:focus-visible{outline:3px solid var(--azul); outline-offset:2px}
 h1,h2{font-family:var(--round); margin:0; letter-spacing:-.01em}
@@ -79,7 +81,7 @@ textarea{min-height:84px; resize:vertical}
 .corpo{flex:1; padding:6px calc(var(--sr) + 18px) 12px calc(var(--sl) + 18px); display:flex; flex-direction:column; gap:14px}
 .pe{padding:8px calc(var(--sr) + 18px) calc(var(--sb) + 14px) calc(var(--sl) + 18px); display:flex; gap:10px}
 .teste.imersivo .barra, .teste.imersivo .pe{display:none}
-.teste.imersivo .corpo{position:fixed; top:0; left:0; right:0; bottom:0; padding:0; gap:0}
+.teste.imersivo .corpo{position:fixed; top:0; left:0; right:0; bottom:0; padding:0; gap:0; touch-action:none; overscroll-behavior:none}
 .botoes{display:grid; grid-template-columns:1fr 1fr; gap:10px}
 .estado{font-family:var(--round); font-weight:700}
 .estado.ok{color:var(--ok)} .estado.fail{color:var(--falha)}
@@ -176,7 +178,7 @@ function el(tag, props){
 var app = document.getElementById('app');
 var ua = navigator.userAgent;
 var ehIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-var instalado = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+var instalado = navigator.standalone === true || (window.matchMedia && (matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches));
 
 var MODELOS = {
   '320x568':'iPhone SE (1ª ger.)', '375x667':'iPhone 6/7/8 ou SE 2/3', '414x736':'iPhone 6/7/8 Plus',
