@@ -30,6 +30,7 @@ body{
 /* Sem overflow:hidden nem position:fixed na página: no app da Tela de Início o iOS calcula a janela
    mais curta que a tela, e cortar a página escondia a parte de baixo dos testes em tela cheia. */
 html.trava, html.trava body{overscroll-behavior:none; touch-action:none; background:var(--tinta)}
+html.trava.branco, html.trava.branco body{background:#fff}
 button{font:inherit; color:inherit; border:0; background:none; padding:0; cursor:pointer}
 button:focus-visible, input:focus-visible, textarea:focus-visible{outline:3px solid var(--azul); outline-offset:2px}
 h1,h2{font-family:var(--round); margin:0; letter-spacing:-.01em}
@@ -92,7 +93,6 @@ textarea{min-height:84px; resize:vertical}
 .faltam{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:5; pointer-events:none; display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center}
 .faltam b{font-family:var(--round); font-size:22px; color:#4D4D4D; font-variant-numeric:tabular-nums; background:rgba(255,255,255,.8); padding:2px 10px; border-radius:10px}
 .faltam button{pointer-events:auto; min-height:40px; padding:0 16px; border-radius:999px; background:rgba(255,255,255,.9); border:1px solid var(--linha); color:var(--azul); font-size:15px; font-weight:600}
-.dica-toque{margin-top:auto; margin-bottom:auto; text-align:center; display:flex; flex-direction:column; gap:14px; align-items:center}
 .cortina{position:fixed; inset:0; z-index:8; background:rgba(20,33,43,.94); color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:28px; text-align:center}
 .cortina .btn{flex:none; width:100%; max-width:320px}
 .pad{flex:1; min-height:240px; border-radius:20px; background:var(--tinta); position:relative; overflow:hidden; touch-action:none; display:flex; align-items:center; justify-content:center; color:#fff}
@@ -365,7 +365,7 @@ window.addEventListener('resize', ajustarAltura);
 function corBarra(c){ var m = document.querySelector('meta[name=theme-color]'); if (m) m.setAttribute('content', c); }
 function limparTudo(){
   if (limpar){ try { limpar(); } catch(e){} limpar = null; }
-  document.documentElement.classList.remove('trava');
+  document.documentElement.classList.remove('trava', 'branco');
   corBarra('#E6EBEF');
   corpoCheio = null;
   app.textContent = '';
@@ -463,112 +463,111 @@ function testeFantasma(ctx){
   };
 }
 
-/* 2. Toque na tela inteira (mesmo formato do app nativo: grade branca, quadrados verdes e traço de tinta) */
+/* Toque na tela inteira (mesmo formato do app nativo: grade branca, quadrados verdes e traço de tinta).
+   Entra em tela cheia logo ao abrir, como o teste de cores: instrução e "Desistir" aparecem por cima da grade. */
 function testeToque(ctx){
-  var etapa = 1, faltaram = '', parar = null;
-  function explicar(desistiu){
-    if (parar){ parar(); parar = null; }
-    ctx.imersivo(false);
-    ctx.corpo.textContent = ''; ctx.pe.textContent = '';
-    ctx.titulo('Toque na tela inteira', 'Passe o dedo por todos os quadrados até a tela ficar toda verde.');
-    ctx.corpo.append(el('div', {class:'dica-toque'},
-      el('p', {text: desistiu ? 'Algum quadrado não ficou verde mesmo passando o dedo?' : 'Se não conseguir completar, toque em "Desistir" no meio da tela.'}),
-      el('button', {class:'btn primario', style:'flex:none;width:100%;max-width:320px', type:'button', text: desistiu ? 'Tentar de novo' : 'Começar', onclick:function(){ etapa = 1; grade(); }})));
-    if (desistiu) ctx.pe.append(el('button', {class:'btn falhou', type:'button', text:'Não funcionou', onclick:function(){ ctx.fim('fail', faltaram); }}));
+  ctx.imersivo();
+  document.documentElement.classList.add('branco');
+  var etapa = 1, cortina = null;
+  var caixa = el('div', {class:'grade'}), base = el('canvas'), tinta = el('canvas');
+  var conta = el('b'), medidas = el('small', {style:'font-size:11px;color:#555;background:rgba(255,255,255,.85);padding:2px 6px;border-radius:6px;max-width:300px'});
+  caixa.append(base, tinta);
+  ctx.corpo.append(caixa, el('div', {class:'faltam'}, conta,
+    el('button', {type:'button', text:'Desistir', onclick:function(){
+      var nota = 'Faltaram ' + (total - feitos) + ' de ' + total + ' quadrados' + (etapa === 2 ? ' (deitado)' : '');
+      aviso(
+        el('h2', {text:'Algum quadrado não ficou verde mesmo passando o dedo?'}),
+        el('button', {class:'btn neutro', style:'color:#14212B', type:'button', text:'Tentar de novo', onclick:function(){ fechar(); etapa = 1; montar(); }}),
+        el('button', {class:'btn falhou', type:'button', text:'Não funcionou', onclick:function(){ ctx.fim('fail', nota); }}));
+    }}), medidas));
+  function aviso(){
+    fechar();
+    cortina = el('div', {class:'cortina'}, Array.prototype.slice.call(arguments));
+    ctx.corpo.append(cortina);
   }
-  function grade(){
-    if (parar) parar();
-    ctx.imersivo();
-    ctx.corpo.textContent = ''; ctx.pe.textContent = '';
-    var caixa = el('div', {class:'grade'}), base = el('canvas'), tinta = el('canvas');
-    var conta = el('b'), medidas = el('small', {style:'font-size:11px;color:#555;background:rgba(255,255,255,.85);padding:2px 6px;border-radius:6px;max-width:300px'}), cortina = null;
-    caixa.append(base, tinta);
-    ctx.corpo.append(caixa, el('div', {class:'faltam'}, conta,
-      el('button', {type:'button', text:'Desistir', onclick:function(){
-        faltaram = 'Faltaram ' + (total - feitos) + ' de ' + total + ' quadrados' + (etapa === 2 ? ' (deitado)' : '');
-        explicar(true);
-      }}), medidas));
-    var W, H, col, lin, cw, ch, total, feitos, marcado, gb, gt, ultimo = {}, acabou = false, giro = orient();
-    function orient(){ return window.innerWidth > window.innerHeight ? 'deitado' : 'em pe'; }
-    function montar(){
-      var r = caixa.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
-      W = r.width; H = r.height;
-      if (W <= H){ col = 7; lin = Math.max(1, Math.round(7 * H / W)); }
-      else { lin = 7; col = Math.max(1, Math.round(7 * W / H)); }
-      cw = W / col; ch = H / lin; total = col * lin; feitos = 0; acabou = false; ultimo = {};
-      marcado = new Array(total);
-      [base, tinta].forEach(function(c){ c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); });
-      gb = base.getContext('2d'); gt = tinta.getContext('2d');
-      gb.setTransform(dpr, 0, 0, dpr, 0, 0); gt.setTransform(dpr, 0, 0, dpr, 0, 0);
-      gb.fillStyle = '#fff'; gb.fillRect(0, 0, W, H);
-      gb.strokeStyle = '#CCCCCC'; gb.lineWidth = 1;
-      for (var i = 0; i < total; i++) gb.strokeRect((i % col) * cw + .5, Math.floor(i / col) * ch + .5, cw, ch);
-      gt.strokeStyle = '#0D47A1'; gt.lineWidth = 5; gt.lineCap = 'round';
-      atualizar();
-      medidas.textContent = diag() + ' grade=' + Math.round(W) + 'x' + Math.round(H);
-    }
-    function atualizar(){ conta.textContent = 'Faltam ' + (total - feitos); }
-    function pintarCel(c, l){
-      var i = l * col + c;
-      if (marcado[i]) return;
-      marcado[i] = true; feitos++;
-      gb.fillStyle = '#2E7D32'; gb.fillRect(c * cw, l * ch, cw, ch);
-      gb.strokeStyle = '#CCCCCC'; gb.strokeRect(c * cw + .5, l * ch + .5, cw, ch);
-    }
-    // Marca todos os quadrados no caminho entre dois pontos (arrastes rápidos pulam quadrados sem isso).
-    function traco(a, b){
-      gt.beginPath(); gt.moveTo(a.x, a.y); gt.lineTo(b.x, b.y); gt.stroke();
-      var n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / (Math.min(cw, ch) / 3)));
-      for (var k = 0; k <= n; k++){
-        var t = k / n, x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t;
-        var c = Math.floor(x / cw), l = Math.floor(y / ch);
-        if (c >= 0 && c < col && l >= 0 && l < lin) pintarCel(c, l);
-      }
-      atualizar();
-      if (feitos === total && !acabou){ acabou = true; setTimeout(completo, 300); }
-    }
-    function completo(){
-      if (etapa === 2 || instalado){ ctx.fim('ok'); return; }
-      // No Safari as barras escondem faixas da tela; deitado, elas ficam em outro lugar.
-      cortina = el('div', {class:'cortina'},
-        el('h2', {text:'Agora deite o iPhone'}),
-        el('p', {text:'Pinte de novo com o aparelho de lado. Isso cobre as faixas que ficaram embaixo das barras do Safari.'}),
-        el('button', {class:'btn neutro', style:'color:#14212B', type:'button', text:'Pular esta parte', onclick:function(){ ctx.fim('ok', 'Testado só em pé'); }}));
-      ctx.corpo.append(cortina);
-    }
-    function ponto(p){ var r = caixa.getBoundingClientRect(); return {x:p.clientX - r.left, y:p.clientY - r.top}; }
-    function aoToque(e){
-      e.preventDefault();
-      if (acabou) return;
-      for (var i = 0; i < e.changedTouches.length; i++){
-        var t = e.changedTouches[i], p = ponto(t);
-        if (e.type === 'touchstart'){ ultimo[t.identifier] = p; traco(p, p); }
-        else if (e.type === 'touchmove'){ traco(ultimo[t.identifier] || p, p); ultimo[t.identifier] = p; }
-        else delete ultimo[t.identifier];
-      }
-    }
-    function aoMouse(e){
-      if (acabou) return;
-      var p = ponto(e);
-      if (e.type === 'mousedown'){ ultimo.m = p; traco(p, p); }
-      else if (e.buttons && ultimo.m){ traco(ultimo.m, p); ultimo.m = p; }
-      else delete ultimo.m;
-    }
-    function aoGirar(){
-      var agora = orient();
-      if (agora === giro) return;
-      giro = agora;
-      if (cortina){ cortina.remove(); cortina = null; etapa = 2; }
-      setTimeout(function(){ ajustarAltura(); montar(); }, 250);
-    }
-    ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(function(n){ caixa.addEventListener(n, aoToque, {passive:false}); });
-    ['mousedown', 'mousemove', 'mouseup'].forEach(function(n){ caixa.addEventListener(n, aoMouse); });
-    window.addEventListener('resize', aoGirar);
-    parar = function(){ window.removeEventListener('resize', aoGirar); };
-    montar();
+  function fechar(){ if (cortina){ cortina.remove(); cortina = null; } }
+  var W, H, col, lin, cw, ch, total, feitos, marcado, gb, gt, ultimo = {}, acabou = false, giro = orient();
+  function orient(){ return window.innerWidth > window.innerHeight ? 'deitado' : 'em pe'; }
+  function montar(){
+    var r = caixa.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    W = r.width; H = r.height;
+    if (W <= H){ col = 7; lin = Math.max(1, Math.round(7 * H / W)); }
+    else { lin = 7; col = Math.max(1, Math.round(7 * W / H)); }
+    cw = W / col; ch = H / lin; total = col * lin; feitos = 0; acabou = false; ultimo = {};
+    marcado = new Array(total);
+    [base, tinta].forEach(function(c){ c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); });
+    gb = base.getContext('2d'); gt = tinta.getContext('2d');
+    gb.setTransform(dpr, 0, 0, dpr, 0, 0); gt.setTransform(dpr, 0, 0, dpr, 0, 0);
+    gb.fillStyle = '#fff'; gb.fillRect(0, 0, W, H);
+    gb.strokeStyle = '#CCCCCC'; gb.lineWidth = 1;
+    for (var i = 0; i < total; i++) gb.strokeRect((i % col) * cw + .5, Math.floor(i / col) * ch + .5, cw, ch);
+    gt.strokeStyle = '#0D47A1'; gt.lineWidth = 5; gt.lineCap = 'round';
+    atualizar();
+    medidas.textContent = diag() + ' grade=' + Math.round(W) + 'x' + Math.round(H);
   }
-  explicar(false);
-  return function(){ if (parar) parar(); };
+  function atualizar(){ conta.textContent = 'Faltam ' + (total - feitos); }
+  function pintarCel(c, l){
+    var i = l * col + c;
+    if (marcado[i]) return;
+    marcado[i] = true; feitos++;
+    gb.fillStyle = '#2E7D32'; gb.fillRect(c * cw, l * ch, cw, ch);
+    gb.strokeStyle = '#CCCCCC'; gb.strokeRect(c * cw + .5, l * ch + .5, cw, ch);
+  }
+  // Marca todos os quadrados no caminho entre dois pontos (arrastes rápidos pulam quadrados sem isso).
+  function traco(a, b){
+    gt.beginPath(); gt.moveTo(a.x, a.y); gt.lineTo(b.x, b.y); gt.stroke();
+    var n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / (Math.min(cw, ch) / 3)));
+    for (var k = 0; k <= n; k++){
+      var t = k / n, x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t;
+      var c = Math.floor(x / cw), l = Math.floor(y / ch);
+      if (c >= 0 && c < col && l >= 0 && l < lin) pintarCel(c, l);
+    }
+    atualizar();
+    if (feitos === total && !acabou){ acabou = true; setTimeout(completo, 300); }
+  }
+  function completo(){
+    if (etapa === 2 || instalado){ ctx.fim('ok'); return; }
+    // No Safari as barras escondem faixas da tela; deitado, elas ficam em outro lugar.
+    aviso(
+      el('h2', {text:'Agora deite o iPhone'}),
+      el('p', {text:'Pinte de novo com o aparelho de lado. Isso cobre as faixas que ficaram embaixo das barras do Safari.'}),
+      el('button', {class:'btn neutro', style:'color:#14212B', type:'button', text:'Pular esta parte', onclick:function(){ ctx.fim('ok', 'Testado só em pé'); }}));
+  }
+  function ponto(p){ var r = caixa.getBoundingClientRect(); return {x:p.clientX - r.left, y:p.clientY - r.top}; }
+  function aoToque(e){
+    e.preventDefault();
+    if (acabou) return;
+    for (var i = 0; i < e.changedTouches.length; i++){
+      var t = e.changedTouches[i], p = ponto(t);
+      if (e.type === 'touchstart'){ ultimo[t.identifier] = p; traco(p, p); }
+      else if (e.type === 'touchmove'){ traco(ultimo[t.identifier] || p, p); ultimo[t.identifier] = p; }
+      else delete ultimo[t.identifier];
+    }
+  }
+  function aoMouse(e){
+    if (acabou) return;
+    var p = ponto(e);
+    if (e.type === 'mousedown'){ ultimo.m = p; traco(p, p); }
+    else if (e.buttons && ultimo.m){ traco(ultimo.m, p); ultimo.m = p; }
+    else delete ultimo.m;
+  }
+  function aoGirar(){
+    var agora = orient();
+    if (agora === giro) return;
+    giro = agora;
+    if (acabou && !instalado){ fechar(); etapa = 2; }
+    setTimeout(function(){ ajustarAltura(); montar(); }, 250);
+  }
+  ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(function(n){ caixa.addEventListener(n, aoToque, {passive:false}); });
+  ['mousedown', 'mousemove', 'mouseup'].forEach(function(n){ caixa.addEventListener(n, aoMouse); });
+  window.addEventListener('resize', aoGirar);
+  montar();
+  aviso(
+    el('h2', {text:'Toque na tela inteira'}),
+    el('p', {text:'Passe o dedo por todos os quadrados até a tela ficar toda verde. Se não conseguir completar, toque em "Desistir" no meio da tela.'}),
+    el('button', {class:'btn primario', type:'button', text:'Começar', onclick:fechar}),
+    el('button', {class:'btn neutro', style:'color:#14212B', type:'button', text:'Pular este teste', onclick:function(){ ctx.fim('skip'); }}));
+  return function(){ window.removeEventListener('resize', aoGirar); };
 }
 
 /* 3. Multitoque */
