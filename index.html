@@ -333,41 +333,19 @@ var TESTES = [
 ];
 var guiado = false, limpar = null, movimentoLiberado = false;
 
-// No app da Tela de Início com barra de status translúcida, o iOS mede a janela sem a barra de status,
-// mas desenha a página a partir do topo: o que usa inset:0 fica curto embaixo. Usa a altura física da tela.
-var corpoCheio = null;
-function alturaReal(){
-  if (!instalado) return 0;
+// Bug do iOS no app da Tela de Início: às vezes a janela abre mais curta que a tela (uns 55 pt) e
+// sobra uma faixa embaixo que a página não desenha nem recebe toque. Girar o iPhone e voltar corrige.
+function janelaCurta(){
+  if (!instalado) return false;
   var deitado = window.innerWidth > window.innerHeight;
-  var h = deitado ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
-  return Math.max(h, window.innerHeight);
+  var alto = deitado ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
+  return alto - window.innerHeight > 20;
 }
-// Diagnóstico temporário das medidas de tela (remover quando a faixa de baixo estiver resolvida).
-var medidor = null;
-function diag(){
-  if (!medidor){ medidor = el('div', {style:'position:fixed;left:0;top:0;height:calc(100% + 0px);width:1px;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none'}); document.body.append(medidor); }
-  var cs = getComputedStyle(medidor), vv = window.visualViewport;
-  var r = corpoCheio ? corpoCheio.getBoundingClientRect() : null;
-  return 'app=' + (navigator.standalone === true ? 'S' : '-') + (matchMedia('(display-mode: standalone)').matches ? 'M' : '-') +
-    ' tela=' + screen.width + 'x' + screen.height + ' janela=' + innerWidth + 'x' + innerHeight +
-    ' vv=' + (vv ? Math.round(vv.width) + 'x' + Math.round(vv.height) : '?') +
-    ' doc=' + document.documentElement.clientHeight +
-    ' topo=' + cs.paddingTop + ' base=' + cs.paddingBottom +
-    (r ? ' area=' + Math.round(r.top) + '..' + Math.round(r.bottom) : '');
-}
-function ajustarAltura(){
-  if (!corpoCheio){ return; }
-  var h = alturaReal();
-  corpoCheio.style.bottom = h ? 'auto' : '';
-  corpoCheio.style.height = h ? h + 'px' : '';
-}
-window.addEventListener('resize', ajustarAltura);
 function corBarra(c){ var m = document.querySelector('meta[name=theme-color]'); if (m) m.setAttribute('content', c); }
 function limparTudo(){
   if (limpar){ try { limpar(); } catch(e){} limpar = null; }
   document.documentElement.classList.remove('trava', 'branco');
   corBarra('#E6EBEF');
-  corpoCheio = null;
   app.textContent = '';
   window.scrollTo(0, 0);
 }
@@ -396,8 +374,6 @@ function abrir(i){
       raiz.classList.toggle('imersivo', sim !== false);
       document.documentElement.classList.toggle('trava', sim !== false);
       corBarra(sim !== false ? '#14212B' : '#E6EBEF');
-      corpoCheio = sim !== false ? corpo : null;
-      ajustarAltura();
     },
     fim: function(res, nota){
       estado.res[t.id] = res;
@@ -470,7 +446,7 @@ function testeToque(ctx){
   document.documentElement.classList.add('branco');
   var etapa = 1, cortina = null;
   var caixa = el('div', {class:'grade'}), base = el('canvas'), tinta = el('canvas');
-  var conta = el('b'), medidas = el('small', {style:'font-size:11px;color:#555;background:rgba(255,255,255,.85);padding:2px 6px;border-radius:6px;max-width:300px'});
+  var conta = el('b');
   caixa.append(base, tinta);
   ctx.corpo.append(caixa, el('div', {class:'faltam'}, conta,
     el('button', {type:'button', text:'Desistir', onclick:function(){
@@ -479,7 +455,7 @@ function testeToque(ctx){
         el('h2', {text:'Algum quadrado não ficou verde mesmo passando o dedo?'}),
         el('button', {class:'btn neutro', style:'color:#14212B', type:'button', text:'Tentar de novo', onclick:function(){ fechar(); etapa = 1; montar(); }}),
         el('button', {class:'btn falhou', type:'button', text:'Não funcionou', onclick:function(){ ctx.fim('fail', nota); }}));
-    }}), medidas));
+    }})));
   function aviso(){
     fechar();
     cortina = el('div', {class:'cortina'}, Array.prototype.slice.call(arguments));
@@ -503,7 +479,6 @@ function testeToque(ctx){
     for (var i = 0; i < total; i++) gb.strokeRect((i % col) * cw + .5, Math.floor(i / col) * ch + .5, cw, ch);
     gt.strokeStyle = '#0D47A1'; gt.lineWidth = 5; gt.lineCap = 'round';
     atualizar();
-    medidas.textContent = diag() + ' grade=' + Math.round(W) + 'x' + Math.round(H);
   }
   function atualizar(){ conta.textContent = 'Faltam ' + (total - feitos); }
   function pintarCel(c, l){
@@ -556,17 +531,32 @@ function testeToque(ctx){
     if (agora === giro) return;
     giro = agora;
     if (acabou && !instalado){ fechar(); etapa = 2; }
-    setTimeout(function(){ ajustarAltura(); montar(); }, 250);
+    setTimeout(function(){
+      montar();
+      if (esperandoGiro && !janelaCurta()) instrucao();
+    }, 250);
   }
   ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(function(n){ caixa.addEventListener(n, aoToque, {passive:false}); });
   ['mousedown', 'mousemove', 'mouseup'].forEach(function(n){ caixa.addEventListener(n, aoMouse); });
   window.addEventListener('resize', aoGirar);
+  var esperandoGiro = false;
+  function instrucao(){
+    esperandoGiro = false;
+    aviso(
+      el('h2', {text:'Toque na tela inteira'}),
+      el('p', {text:'Passe o dedo por todos os quadrados até a tela ficar toda verde. Se não conseguir completar, toque em "Desistir" no meio da tela.'}),
+      el('button', {class:'btn primario', type:'button', text:'Começar', onclick:fechar}),
+      el('button', {class:'btn neutro', style:'color:#14212B', type:'button', text:'Pular este teste', onclick:function(){ ctx.fim('skip'); }}));
+  }
   montar();
-  aviso(
-    el('h2', {text:'Toque na tela inteira'}),
-    el('p', {text:'Passe o dedo por todos os quadrados até a tela ficar toda verde. Se não conseguir completar, toque em "Desistir" no meio da tela.'}),
-    el('button', {class:'btn primario', type:'button', text:'Começar', onclick:fechar}),
-    el('button', {class:'btn neutro', style:'color:#14212B', type:'button', text:'Pular este teste', onclick:function(){ ctx.fim('skip'); }}));
+  if (janelaCurta()){
+    esperandoGiro = true;
+    aviso(
+      el('h2', {text:'Gire o iPhone de lado e volte'}),
+      el('p', {text:'O iPhone abriu o app com a tela um pouco mais curta e a parte de baixo ficou de fora. Deitar o aparelho e voltar a ficar em pé corrige.'}),
+      el('p', {class:'pequeno', style:'opacity:.75', text:'Se a tela não girar, desligue o bloqueio de rotação na Central de Controle.'}),
+      el('button', {class:'btn neutro', style:'color:#14212B', type:'button', text:'Continuar assim', onclick:instrucao}));
+  } else instrucao();
   return function(){ window.removeEventListener('resize', aoGirar); };
 }
 
@@ -932,7 +922,6 @@ function inicio(){
   var tela = el('div', {class:'tela'},
     el('h1', {text:'Testador de iPhone'}),
     el('p', {class:'apagado', style:'margin-top:6px', text:'Tela ' + ap.tela + (ap.modelo ? ', provável ' + ap.modelo : '') + (ap.safari ? '. Safari ' + ap.safari + '.' : '.')}),
-    el('p', {class:'apagado', style:'font-size:11px;margin-top:4px', text:diag()}),
     !window.isSecureContext ? el('div', {class:'aviso', text:'Esta página não está em HTTPS. Câmera, microfone, sensores e GPS ficam bloqueados.'}) : null,
     !ehIOS ? el('div', {class:'aviso', text:'Feito para o Safari do iPhone. Em outro aparelho, parte dos testes não funciona.'}) : null,
     ehIOS && !instalado ? el('div', {class:'instalar'},
